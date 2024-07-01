@@ -1,0 +1,10 @@
+SELECT ?prop (MAX(?pc) AS ?posHits) (COUNT(DISTINCT ?negId) AS ?negHits) WHERE {
+    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?pc) WHERE {
+        VALUES ?pos { <https://github.com/qald_10#QUE133> <https://github.com/qald_10#QUE27> <https://github.com/qald_10#QUE127> }
+        POS_CONTEXT
+        ?a ?prop [] .
+    } GROUP BY ?prop }
+    VALUES ?neg { <https://github.com/qald_10#QUE134> <https://github.com/qald_10#QUE28> <https://github.com/qald_10#QUE128> }
+  OPTIONAL { ?neg ?prop [] . BIND (CONCAT(STR(?neg),STR(?prop)) as ?negId)}
+} GROUP BY ?prop
+ORDER BY DESC(?posHits) (?negHits)
