@@ -54,7 +54,11 @@ public class NamedClass implements ClassExpression {
 
     @Override
     public String toString() {
-        return name;
+        if (isNegated()) {
+            return '¬' + name;
+        } else {
+            return name;
+        }
     }
 
     @Override
