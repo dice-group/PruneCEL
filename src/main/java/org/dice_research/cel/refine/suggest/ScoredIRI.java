@@ -1,21 +1,17 @@
 package org.dice_research.cel.refine.suggest;
 
-public class ScoredIRI {
+public class ScoredIRI extends SelectionScores {
 
-    private String iri;
-    private int posCount;
-    private int negCount;
-    private boolean inverted;
+    protected String iri;
+    protected boolean inverted;
 
     public ScoredIRI(String iri, int posCount, int negCount) {
         this(iri, posCount, negCount, false);
     }
 
     public ScoredIRI(String iri, int posCount, int negCount, boolean inverted) {
-        super();
+        super(posCount, negCount);
         this.iri = iri;
-        this.posCount = posCount;
-        this.negCount = negCount;
         this.inverted = inverted;
     }
 
@@ -31,34 +27,6 @@ public class ScoredIRI {
      */
     public void setIri(String iri) {
         this.iri = iri;
-    }
-
-    /**
-     * @return the posCount
-     */
-    public int getPosCount() {
-        return posCount;
-    }
-
-    /**
-     * @param posCount the posCount to set
-     */
-    public void setPosCount(int posCount) {
-        this.posCount = posCount;
-    }
-
-    /**
-     * @return the negCount
-     */
-    public int getNegCount() {
-        return negCount;
-    }
-
-    /**
-     * @param negCount the negCount to set
-     */
-    public void setNegCount(int negCount) {
-        this.negCount = negCount;
     }
 
     /**

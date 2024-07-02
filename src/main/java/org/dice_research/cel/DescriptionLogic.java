@@ -256,6 +256,7 @@ public class DescriptionLogic {
         } else if (name.equalsIgnoreCase("ALC")) {
             logic.setName("ALC");
             logic.setSupportsAtomicNegation(true);
+            logic.setSupportsComplexConceptNegation(true);
             logic.setSupportsConceptIntersection(true);
             logic.setSupportsUniversalRestrictions(true);
             logic.setSupportsConceptUnion(true);

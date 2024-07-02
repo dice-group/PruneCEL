@@ -5,6 +5,7 @@ import java.net.http.HttpClient;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.OWL2;
 import org.dice_research.cel.DescriptionLogic;
 import org.dice_research.cel.expression.ClassExpression;
+import org.dice_research.cel.expression.ClassExpressionVisitingCreator;
 import org.dice_research.cel.expression.ClassExpressionVisitor;
 import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
@@ -29,7 +31,7 @@ import org.dice_research.cel.expression.SimpleQuantifiedRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
+public class SparqlBasedSuggestor implements ExtendedSuggestor, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SparqlBasedSuggestor.class);
 
@@ -37,6 +39,8 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
     protected Set<String> classBlackList = new HashSet<String>();
     protected Set<String> propertyBlackList = new HashSet<String>();
     protected DescriptionLogic logic;
+    protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
+    protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
 
     public SparqlBasedSuggestor(String endpoint, DescriptionLogic logic) throws IOException {
         this(endpoint, logic, false);
@@ -56,6 +60,7 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
 
     protected Collection<ScoredIRI> performQuery(String query, Function<QuerySolution, ScoredIRI> transformation,
             Collection<ScoredIRI> results) {
+        LOGGER.trace("Sending query {}", query);
         // Create the query execution with try-catch to ensure that it will be closed
         try (QueryExecution qe = queryExecFactory.createQueryExecution(query);) {
             ResultSet result = qe.execSelect();
@@ -76,7 +81,6 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
     protected Collection<ScoredIRI> performClassSelection(String query) {
         List<ScoredIRI> results = new ArrayList<>();
         performQuery(query, new Function<QuerySolution, ScoredIRI>() {
-
             @Override
             public ScoredIRI apply(QuerySolution s) {
                 if (s.contains("?class")) {
@@ -92,21 +96,33 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
         return results;
     }
 
+    protected ClassExpression prepareClassExpression(ClassExpression ce) {
+        if (checker.containsDisjunction(ce)) {
+            return preprocessor.preprocess(ce);
+        } else {
+            return ce;
+        }
+    }
+
     @Override
     public Collection<ScoredIRI> suggestClass(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
         String query;
+        LOGGER.trace("Suggesting classes for {}", context);
+        ClassExpression prepared = prepareClassExpression(context);
         if (logic.supportsComplexConceptNegation()) {
-            query = generateClassQueryForGeneralNegation(positive, negative, context);
+            query = generateClassQueryForGeneralNegation(positive, negative, prepared);
         } else {
-            query = generateClassQuery(positive, negative, context);
+            query = generateClassQuery(positive, negative, prepared);
         }
         return performClassSelection(query);
     }
 
     public Collection<ScoredIRI> suggestNegatedClass(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
-        return performClassSelection(generateClassQueryForGeneralNegation(positive, negative, context));
+        LOGGER.trace("Suggesting negated classes for {}", context);
+        ClassExpression prepared = prepareClassExpression(context);
+        return performClassSelection(generateNegatedClassQuery(positive, negative, prepared));
     }
 
     /**
@@ -124,29 +140,24 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
             ClassExpression context) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (COUNT(DISTINCT ?neg) AS ?negHits) WHERE {\n");
-        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) WHERE {\n");
-        queryBuilder.append("        VALUES ?pos {");
-        for (String pos : positive) {
-            queryBuilder.append(" <");
-            queryBuilder.append(pos);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
+        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", v -> v + " a ?class .");
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
+                v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
         queryBuilder.append("    } GROUP BY ?class }\n");
-        queryBuilder.append("    VALUES ?neg {");
-        for (String neg : negative) {
-            queryBuilder.append(" <");
-            queryBuilder.append(neg);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n    OPTIONAL {\n");
-        queryBuilder.append(contextString.replaceAll("\\?pos ", "?neg "));
-        queryBuilder.append("    }} GROUP BY ?class\nORDER BY DESC(?posHits) (?negHits)");
+        queryBuilder.append("    OPTIONAL {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("    }} GROUP BY ?class");
+        // queryBuilder.append(" }} GROUP BY ?class\nORDER BY DESC(?posHits)
+        // (?negHits)");
         return queryBuilder.toString();
     }
 
@@ -165,33 +176,25 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
             ClassExpression context) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
-        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (MAX(?neg) AS ?fp) WHERE {\n");
-        queryBuilder.append("        VALUES ?pos {");
-        for (String pos : positive) {
-            queryBuilder.append(" <");
-            queryBuilder.append(pos);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
+        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos",
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
                 v -> "?class a <" + OWL.Class.getURI() + "> .        \nFILTER NOT EXISTS { " + v + " a ?class . }");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
-        queryBuilder.append("        BIND (0 as ?neg)\n      } GROUP BY ?class\n");
+        queryBuilder.append("      } GROUP BY ?class\n");
         queryBuilder.append("    } UNION {\n");
-        queryBuilder.append("      SELECT ?class (MAX(?pos) AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {");
-        queryBuilder.append("        VALUES ?neg {");
-        for (String neg : negative) {
-            queryBuilder.append(" <");
-            queryBuilder.append(neg);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
-        queryBuilder.append(contextString.replaceAll("\\?pos ", "?neg "));
-        queryBuilder.append("        BIND (0 as ?pos)\n      } GROUP BY ?class\n    }\n");
-        queryBuilder.append("} GROUP BY ?class\nORDER BY DESC(?posHits) (?negHits)");
+        queryBuilder.append("      SELECT ?class (0 AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("      } GROUP BY ?class\n    }\n");
+        queryBuilder.append("} GROUP BY ?class");
+        // queryBuilder.append("} GROUP BY ?class\nORDER BY DESC(?posHits) (?negHits)");
         return queryBuilder.toString();
     }
 
@@ -212,45 +215,50 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
             ClassExpression context) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
-        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (MAX(?neg) AS ?fp) WHERE {\n");
-        queryBuilder.append("        VALUES ?pos {");
-        for (String pos : positive) {
-            queryBuilder.append(" <");
-            queryBuilder.append(pos);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
+        queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", v -> v + " a ?class .");
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
+                v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
-        queryBuilder.append("        BIND (0 as ?neg)\n      } GROUP BY ?class\n");
+        queryBuilder.append("      } GROUP BY ?class\n");
         queryBuilder.append("    } UNION {\n");
-        queryBuilder.append("      SELECT ?class (MAX(?pos) AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {");
-        queryBuilder.append("        VALUES ?neg {");
-        for (String neg : negative) {
-            queryBuilder.append(" <");
-            queryBuilder.append(neg);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
-        queryBuilder.append(contextString.replaceAll("\\?pos ", "?neg "));
-        queryBuilder.append("        BIND (0 as ?pos)\n      } GROUP BY ?class\n    }\n");
-        queryBuilder.append("} GROUP BY ?class\nORDER BY DESC(?posHits) (?negHits)");
+        queryBuilder.append("      SELECT ?class (0 AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("      } GROUP BY ?class\n    }\n");
+        queryBuilder.append("} GROUP BY ?class");
+        // queryBuilder.append("} GROUP BY ?class\nORDER BY DESC(?posHits) (?negHits)");
         return queryBuilder.toString();
     }
 
     @Override
     public Collection<ScoredIRI> suggestProperty(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
+        LOGGER.trace("Suggesting properties for {}", context);
+        ClassExpression prepared = prepareClassExpression(context);
+        Collection<ScoredIRI> results = suggestProperty(positive, negative, prepared, false);
+        if (logic.supportsInverseProperties()) {
+            results.addAll(suggestProperty(positive, negative, prepared, true));
+        }
+        return results;
+    }
+
+    protected Collection<ScoredIRI> suggestProperty(Collection<String> positive, Collection<String> negative,
+            ClassExpression context, boolean inverted) {
         List<ScoredIRI> results = new ArrayList<>();
         String query;
         if (logic.supportsAtomicNegation()) {
-            query = generatePropertyQuery(positive, negative, context);
+            query = generatePropertyQuery(positive, negative, context, inverted);
         } else {
-            query = generatePropertyQueryWithoutNegation(positive, negative, context);
+            query = generatePropertyQueryWithoutNegation(positive, negative, context, inverted);
         }
+        LOGGER.trace("Sending query {}", query);
         // Create the query execution with try-catch to ensure that it will be closed
         try (QueryExecution qe = queryExecFactory.createQueryExecution(query);) {
             ResultSet result = qe.execSelect();
@@ -261,7 +269,7 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
                     iri = s.getResource("?prop").getURI();
                     if (!propertyBlackList.contains(iri)) {
                         results.add(new ScoredIRI(s.getResource("?prop").getURI(), s.getLiteral("posHits").getInt(),
-                                s.getLiteral("negHits").getInt()));
+                                s.getLiteral("negHits").getInt(), inverted));
                     }
                 }
             }
@@ -273,67 +281,53 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
     }
 
     protected String generatePropertyQuery(Collection<String> positive, Collection<String> negative,
-            ClassExpression context) {
-        // TODO add usage of inverse properties!
+            ClassExpression context, boolean inverted) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?prop (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
-        queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?tp) (MAX(?neg) AS ?fp) WHERE {\n");
-        queryBuilder.append("        VALUES ?pos {");
-        for (String pos : positive) {
-            queryBuilder.append(" <");
-            queryBuilder.append(pos);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
+        queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", v -> v + " ?prop [] .");
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
+                inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
-        queryBuilder.append("        BIND (0 as ?neg)\n      } GROUP BY ?prop\n");
+        queryBuilder.append("      } GROUP BY ?prop\n");
         queryBuilder.append("    } UNION {\n");
-        queryBuilder.append("      SELECT ?prop (MAX(?pos) AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {");
-        queryBuilder.append("        VALUES ?neg {");
-        for (String neg : negative) {
-            queryBuilder.append(" <");
-            queryBuilder.append(neg);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
-        queryBuilder.append(contextString.replaceAll("\\?pos ", "?neg "));
-        queryBuilder.append("        BIND (0 as ?pos)\n      } GROUP BY ?prop\n    }\n");
-        queryBuilder.append("} GROUP BY ?prop\nORDER BY DESC(?posHits) (?negHits)");
+        queryBuilder.append("      SELECT ?prop (0 AS ?tp) (COUNT(DISTINCT ?neg) AS ?fp) WHERE {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("      } GROUP BY ?prop\n    }\n");
+        queryBuilder.append("} GROUP BY ?prop");
+        // queryBuilder.append("} GROUP BY ?prop\nORDER BY DESC(?posHits) (?negHits)");
         return queryBuilder.toString();
     }
 
     protected String generatePropertyQueryWithoutNegation(Collection<String> positive, Collection<String> negative,
-            ClassExpression context) {
+            ClassExpression context, boolean inverted) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?prop (MAX(?pc) AS ?posHits) (COUNT(DISTINCT ?negId) AS ?negHits) WHERE {\n");
-        queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?pc) WHERE {\n");
-        queryBuilder.append("        VALUES ?pos {");
-        for (String pos : positive) {
-            queryBuilder.append(" <");
-            queryBuilder.append(pos);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n");
+        queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?pc) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", v -> v + " ?prop [] .");
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
+                inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
         queryBuilder.append("    } GROUP BY ?prop }\n");
-        queryBuilder.append("    VALUES ?neg {");
-        for (String neg : negative) {
-            queryBuilder.append(" <");
-            queryBuilder.append(neg);
-            queryBuilder.append('>');
-        }
-        queryBuilder.append(" }\n    OPTIONAL {\n");
-        queryBuilder.append(contextString.replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("    OPTIONAL {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
         queryBuilder.append("        BIND (CONCAT(STR(?neg),STR(?prop)) as ?negId)}\n");
-        queryBuilder.append("    } GROUP BY ?prop\nORDER BY DESC(?posHits) (?negHits)");
+        queryBuilder.append("    } GROUP BY ?prop");
+        // queryBuilder.append(" } GROUP BY ?prop\nORDER BY DESC(?posHits) (?negHits)");
         return queryBuilder.toString();
     }
 
@@ -353,20 +347,96 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
         this.propertyBlackList.addAll(propertyIRIs);
     }
 
+    @Override
+    public SelectionScores scoreExpression(ClassExpression expression, Collection<String> positive,
+            Collection<String> negative) {
+        LOGGER.trace("Scoring expression {}", expression);
+        ClassExpression prepared = prepareClassExpression(expression);
+        String query = generateScoreQueryForGeneralNegation(positive, negative, prepared);
+        LOGGER.trace("Sending query {}", query);
+        // Create the query execution with try-catch to ensure that it will be closed
+        try (QueryExecution qe = queryExecFactory.createQueryExecution(query);) {
+            ResultSet result = qe.execSelect();
+            if (result.hasNext()) {
+                QuerySolution s = result.next();
+                return new SelectionScores(s.getLiteral("posHits").getInt(), s.getLiteral("negHits").getInt());
+            } else {
+                LOGGER.warn("Got an empty result fo the expression {}. Returning a zero score.", expression);
+                return new SelectionScores(0, 0);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Exception while executing SPARQL request. query=" + query, e);
+            throw e;
+        }
+    }
+
+    protected String generateScoreQueryForGeneralNegation(Collection<String> positive, Collection<String> negative,
+            ClassExpression expression) {
+        StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("SELECT ?posHits ?negHits WHERE {\n");
+        queryBuilder.append("    { SELECT (COUNT(DISTINCT ?pos) AS ?posHits) WHERE {\n        ");
+        String valuesString = generateValuesStmt("?pos", positive);
+        StringBuilder contextBuilder = new StringBuilder();
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString, v -> "");
+        expression.accept(visitor);
+        String contextString = contextBuilder.toString();
+        queryBuilder.append(contextString);
+        queryBuilder.append("    }\n");
+        queryBuilder.append("    { SELECT (COUNT(DISTINCT ?neg) AS ?negHits) WHERE {\n        ");
+        // generate the negative context by replacing all VALUES statements and after
+        // that all remaining ?pos occurrences.
+        queryBuilder.append(
+                contextString.replaceAll("VALUES[ ]+\\?pos[ ]+\\{[^}]*\\}", generateValuesStmt("?neg", negative))
+                        .replaceAll("\\?pos ", "?neg "));
+        queryBuilder.append("    }\n");
+        queryBuilder.append("}");
+        return queryBuilder.toString();
+    }
+
+    protected String generateValuesStmt(String variable, Collection<String> values) {
+        StringBuilder valuesBuilder = new StringBuilder();
+        appendValues(valuesBuilder, variable, values);
+        return valuesBuilder.toString();
+    }
+
+    protected void appendValues(StringBuilder queryBuilder, String variable, Collection<String> values) {
+        queryBuilder.append("VALUES ");
+        queryBuilder.append(variable);
+        queryBuilder.append(" {");
+        for (String value : values) {
+            queryBuilder.append(" <");
+            queryBuilder.append(value);
+            queryBuilder.append('>');
+        }
+        queryBuilder.append(" }\n");
+    }
+
+    /**
+     * FIXME Before transforming the expression to a SPARQL query, we should move
+     * all disjunctions/UNION up the tree to ensure that they are the root node of
+     * the expression. Otherwise, we will always face performance issues on some
+     * SPARQL stores.
+     * 
+     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+     *
+     */
     public static class SparqlBuildingVisitor implements ClassExpressionVisitor {
 
         protected static final String INTERMEDIATE_VARIABLE_NAME = "?x";
 
         protected StringBuilder queryBuilder;
         protected Deque<String> variables = new ArrayDeque<String>();
+        protected String valuesString;
         protected int nextVariableId = 0;
+        protected boolean isRoot = true;
         protected Function<String, String> variableToStmtOnMarkedPosition;
         protected NegatingVisitor negator = new NegatingVisitor();
 
-        public SparqlBuildingVisitor(StringBuilder queryBuilder, String firstVariable,
+        public SparqlBuildingVisitor(StringBuilder queryBuilder, String firstVariable, String valuesString,
                 Function<String, String> variableToStmtOnMarkedPosition) {
             super();
             this.queryBuilder = queryBuilder;
+            this.valuesString = valuesString;
             this.variableToStmtOnMarkedPosition = variableToStmtOnMarkedPosition;
             variables.addFirst(firstVariable);
         }
@@ -377,6 +447,11 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
 
         @Override
         public void visitNamedClass(NamedClass node) {
+            // If this is the root node, we can simply add the values
+            if (isRoot) {
+                queryBuilder.append("        ");
+                queryBuilder.append(valuesString);
+            }
             // Check if this is the marked position
             if (Suggestor.CONTEXT_POSITION_MARKER.equals(node)) {
                 queryBuilder.append("        ");
@@ -412,11 +487,19 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
             // If this is a conjunction, we can simply visit all children and let them add
             // their triple patterns
             if (node.isConjunction()) {
+                // If this is the root node, we can simply add the values
+                if (isRoot) {
+                    queryBuilder.append("        ");
+                    queryBuilder.append(valuesString);
+                }
+                boolean oldRoot = isRoot;
+                isRoot = false;
                 for (ClassExpression child : node.getChildren()) {
                     child.accept(this);
                 }
+                isRoot = oldRoot;
             } else {
-                // This is a conjunction, so we have to create UNION statements
+                // This is a disjunction, so we have to create UNION statements
                 boolean first = true;
                 queryBuilder.append("        {\n");
                 for (ClassExpression child : node.getChildren()) {
@@ -425,6 +508,9 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
                     } else {
                         queryBuilder.append("        } UNION {\n");
                     }
+                    // Note: we do not change the isRoot flag, because if the disjunction is the
+                    // root node, the children of the disjunction need to know the VALUES
+                    // restriction.
                     child.accept(this);
                 }
                 queryBuilder.append("        }\n");
@@ -433,32 +519,151 @@ public class SparqlBasedSuggestor implements Suggestor, AutoCloseable {
 
         @Override
         public void visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            String nextVariable = getNextVariable();
-            ClassExpression tail;
+            // If this is the root node, we can simply add the values
+            if (isRoot) {
+                queryBuilder.append("        ");
+                queryBuilder.append(valuesString);
+            }
             if (node.isExists()) {
+                String nextVariable = getNextVariable();
                 // Ensure that there is a connection to at least one node that fulfills the tail
                 // node
                 queryBuilder.append("        ");
-                tail = node.getTailExpression();
+                queryBuilder.append(node.isInverted() ? nextVariable : variables.peek());
+                queryBuilder.append(" <");
+                queryBuilder.append(node.getRole());
+                queryBuilder.append("> ");
+                queryBuilder.append(node.isInverted() ? variables.peek() : nextVariable);
+                queryBuilder.append(" .\n");
+                boolean oldRoot = isRoot;
+                isRoot = false;
+                variables.addFirst(nextVariable);
+                node.getTailExpression().accept(this);
+                variables.removeFirst();
+                isRoot = oldRoot;
             } else {
                 // Ensure that for all possible instantiations of the tail node, they do not
                 // fulfill the negation of the tail node expression.
                 queryBuilder.append("        FILTER NOT EXISTS { ");
-                tail = negator.negateExpression(node);
-            }
-            queryBuilder.append(variables.peek());
-            queryBuilder.append(" <");
-            queryBuilder.append(node.getRole());
-            queryBuilder.append("> ");
-            queryBuilder.append(nextVariable);
-            queryBuilder.append(" .\n");
-            variables.addFirst(nextVariable);
-            tail.accept(this);
-            variables.removeFirst();
-            if (!node.isExists()) {
+                ClassExpression negation = negator.negateExpression(node);
+                boolean oldRoot = isRoot;
+                isRoot = false;
+                negation.accept(this);
+                isRoot = oldRoot;
                 // Close the bracket of the FILTER statement
-                queryBuilder.append("}");
+                queryBuilder.append("        }\n");
             }
+        }
+
+    }
+
+    /**
+     * A simple visitor that checks whether the expression contains a disjunction.
+     * 
+     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+     *
+     */
+    public static class DisjunctionCheckingVisitor implements ClassExpressionVisitingCreator<Boolean> {
+
+        public boolean containsDisjunction(ClassExpression ce) {
+            return ce.accept(this);
+        }
+
+        @Override
+        public Boolean visitNamedClass(NamedClass node) {
+            return Boolean.FALSE;
+        }
+
+        @Override
+        public Boolean visitJunction(Junction node) {
+            if (node.isConjunction()) {
+                for (ClassExpression child : node.getChildren()) {
+                    if (child.accept(this)) {
+                        return Boolean.TRUE;
+                    }
+                }
+                return Boolean.FALSE;
+            } else {
+                return Boolean.TRUE;
+            }
+        }
+
+        @Override
+        public Boolean visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
+            return node.getTailExpression().accept(this);
+        }
+
+    }
+
+    public static class ExpressionPreProcessor implements ClassExpressionVisitingCreator<ClassExpression[]> {
+
+        public ClassExpression preprocess(ClassExpression ce) {
+            ClassExpression[] subExpressions = ce.accept(this);
+            if (subExpressions.length == 1) {
+                return subExpressions[0];
+            } else {
+                return new Junction(false, subExpressions);
+            }
+        }
+
+        @Override
+        public ClassExpression[] visitNamedClass(NamedClass node) {
+            return new ClassExpression[] { node };
+        }
+
+        @Override
+        public ClassExpression[] visitJunction(Junction node) {
+            List<ClassExpression> expressions = new ArrayList<>(node.getChildren().size());
+            if (node.isConjunction()) {
+                // Create all possible combinations of the arrays that we get.
+                ClassExpression[][] arrays = new ClassExpression[node.getChildren().size()][];
+                int pos = 0;
+                for (ClassExpression child : node.getChildren()) {
+                    arrays[pos] = child.accept(this);
+                    ++pos;
+                }
+                int indexes[] = new int[arrays.length];
+                ClassExpression[] combination = new ClassExpression[arrays.length];
+                boolean moreCombinations = true;
+                while (moreCombinations) {
+                    // Create new combination according to indexes
+                    for (int i = 0; i < indexes.length; ++i) {
+                        combination[i] = arrays[i][indexes[i]];
+                    }
+                    expressions.add(new Junction(true, combination));
+                    // increase indexes (works like a clock / counter)
+                    pos = 0;
+                    ++indexes[0];
+                    while ((pos < indexes.length) && (indexes[pos] >= arrays[pos].length)) {
+                        indexes[pos] = 0;
+                        ++pos;
+                        if (pos < indexes.length) {
+                            ++indexes[pos];
+                        } else {
+                            // We saw all combinations
+                            moreCombinations = false;
+                        }
+                    }
+                }
+            } else {
+                // We simply forward all results of the children
+                ClassExpression[] currentArray;
+                for (ClassExpression child : node.getChildren()) {
+                    currentArray = child.accept(this);
+                    Collections.addAll(expressions, currentArray);
+                }
+            }
+            return expressions.toArray(ClassExpression[]::new);
+        }
+
+        @Override
+        public ClassExpression[] visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
+            ClassExpression[] tailExpressions = node.getTailExpression().accept(this);
+            for (int i = 0; i < tailExpressions.length; ++i) {
+                tailExpressions[i] = new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(),
+                        tailExpressions[i]);
+            }
+            return tailExpressions;
         }
 
     }

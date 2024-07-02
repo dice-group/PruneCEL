@@ -18,17 +18,4 @@ public interface Suggestor {
     Collection<ScoredIRI> suggestProperty(Collection<String> positive, Collection<String> negative,
             ClassExpression context);
 
-    /**
-     * Replaces the position marker in the given class expression with the given
-     * replacement. The result is a copy of the given class expression.
-     * 
-     * @param ce
-     * @param replacement
-     * @return
-     */
-    public static ClassExpression replaceAtPosition(ClassExpression ce, ClassExpression replacement) {
-        // TODO
-
-        return null;
-    }
 }

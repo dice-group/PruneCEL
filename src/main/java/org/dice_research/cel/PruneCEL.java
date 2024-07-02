@@ -1,5 +1,8 @@
 package org.dice_research.cel;
 
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,8 +21,8 @@ import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
 import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
+import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SparqlBasedSuggestor;
-import org.dice_research.cel.refine.suggest.Suggestor;
 import org.dice_research.cel.score.AvoidingPickySolutionsDecorator;
 import org.dice_research.cel.score.F1MeasureCalculator;
 import org.dice_research.cel.score.LengthBasedRefinementScorer;
@@ -33,13 +36,13 @@ public class PruneCEL {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PruneCEL.class);
 
-    protected Suggestor suggestor;
+    protected ExtendedSuggestor suggestor;
     protected DescriptionLogic logic;
     protected ScoreCalculatorFactory calculatorFactory;
     protected int maxIterations = 0;
     protected long maxTime = 0L;
 
-    public PruneCEL(Suggestor suggestor, DescriptionLogic logic, ScoreCalculatorFactory calculatorFactory) {
+    public PruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic, ScoreCalculatorFactory calculatorFactory) {
         super();
         this.suggestor = suggestor;
         this.logic = logic;
@@ -47,6 +50,11 @@ public class PruneCEL {
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative) {
+        return findClassExpression(positive, negative, null);
+    }
+
+    public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
+            OutputStream logStream) {
         long startTime = System.currentTimeMillis();
         TopDoubleObjectCollection<ScoredClassExpression> topExpressions = new TopDoubleObjectCollection<>(10, false);
         Set<ScoredClassExpression> seenExpressions = new HashSet<>();
@@ -57,6 +65,7 @@ public class PruneCEL {
 
         RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator, positive,
                 negative);
+        ((SuggestorBasedRefinementOperator) rho).setLogStream(logStream);
 
         Collection<ScoredClassExpression> newExpressions;
         ScoredClassExpression nextBestExpression;
@@ -65,8 +74,15 @@ public class PruneCEL {
         queue.add(nextBestExpression);
         topExpressions.add(nextBestExpression.getClassificationScore(), nextBestExpression);
         int iterationCount = 0;
-        // Start iterating over the queue
-        while (!queue.isEmpty()) {
+        // Iterate over the queue while
+        while (// 1. the queue is not empty
+        !queue.isEmpty() &&
+        // 2. the best expression has not the perfect score
+                (topExpressions.values.length == 0 || topExpressions.values[0] < perfectScore) &&
+                // 3. We haven't reached the maximum number of iterations (if defined)
+                (maxIterations == 0 || iterationCount < maxIterations) &&
+                // 4. We haven't reached the maximum amount of time that we are allowed to use
+                (maxTime == 0 || (System.currentTimeMillis() - startTime) < maxTime)) {
             nextBestExpression = queue.poll();
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
@@ -82,15 +98,8 @@ public class PruneCEL {
                 }
             }
             iterationCount++;
-            // If we found an expression with 1.0, OR we have reached the max iteration
-            // count, we should stop searching
-            if ((topExpressions.values[0] >= perfectScore) || (maxIterations > 0 && iterationCount >= maxIterations)
-                    || (maxTime > 0 && maxTime < (System.currentTimeMillis() - startTime))) {
-                LOGGER.info("Stopping search. Saw {} expressions.", seenExpressions.size());
-                return Stream.of(topExpressions.getObjects()).map(o -> (ScoredClassExpression) o).toList();
-            }
         }
-        // We tried everything we could... that's it
+        LOGGER.info("Stopping search. Saw {} expressions.", seenExpressions.size());
         return Stream.of(topExpressions.getObjects()).map(o -> (ScoredClassExpression) o).toList();
     }
 
@@ -123,14 +132,15 @@ public class PruneCEL {
     }
 
     public static void main(String[] args) throws Exception {
+        //String endpoint = "http://localhost:9080/sparql";
         String endpoint = "http://localhost:3030/exp-bench/sparql";
         // String endpoint = "http://localhost:3030/family/sparql";
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
         ScoreCalculatorFactory factory = null;
         factory = new F1MeasureCalculator.Factory();
-        //factory = new BalancedAccuracyCalculator.Factory();
-        
+        // factory = new BalancedAccuracyCalculator.Factory();
+
         factory = new LengthBasedRefinementScorer.Factory(factory);
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
@@ -914,22 +924,19 @@ public class PruneCEL {
 //                    "http://www.benchmark.org/family#F5M66", "http://www.benchmark.org/family#F9F145");
 
             // DEBUG CODE!!!
-//            ClassExpression ce = new Junction(true,
-//                    new SimpleQuantifiedRole(true, "http://quans-namespace.org/#HasQuery", false,
+//            ClassExpression ce = new Junction(false,
+//                    new SimpleQuantifiedRole(false, "http://quans-namespace.org/#HasLiteralAns", false,
+//                NamedClass.BOTTOM),
 //                            new Junction(true, Suggestor.CONTEXT_POSITION_MARKER,
-//                                    new SimpleQuantifiedRole(true, "http://lsq.aksw.org/vocab#usesFeature", false,
-//                                            NamedClass.TOP))),
-//                    new SimpleQuantifiedRole(true, "http://quans-namespace.org/#HasIRIAns", false, NamedClass.TOP),
-//                    new SimpleQuantifiedRole(true,
-//                            "http://quans-namespace.org/DependencyParseTree/HasNLPDependencyParseTree", false,
-//                            new SimpleQuantifiedRole(true,
-//                                    "http://quans-namespace.org/DependencyParseTree/NLPDependencyParseTreeRelation#obj",
-//                                    false, NamedClass.TOP)));
-//            suggestor.suggestClass(positive, negative, ce);
+//                                    new NamedClass("http://quans-namespace.org/#QUESTION")));
+//            suggestor.suggestClass(positives.get(0), negatives.get(0), ce);
             // DEBUG CODE END!!!
             try (PrintStream pout = new PrintStream("mst5-results.txt")) {
                 for (int i = 0; i < names.size(); ++i) {
-                    runSearch(names.get(i), positives.get(i), negatives.get(i), cel, pout);
+                    try (OutputStream logStream = new BufferedOutputStream(
+                            new FileOutputStream(names.get(i) + ".log"))) {
+                        runSearch(names.get(i), positives.get(i), negatives.get(i), cel, pout, logStream);
+                    }
                 }
             }
 
@@ -946,10 +953,10 @@ public class PruneCEL {
     }
 
     public static void runSearch(String name, List<String> positive, List<String> negative, PruneCEL cel,
-            PrintStream pout) {
+            PrintStream pout, OutputStream logStream) {
         System.out.println("Starting " + name);
         long time = System.currentTimeMillis();
-        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative);
+        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative, logStream);
         time = System.currentTimeMillis() - time;
         printClassExpressions(expressions, name, time, pout);
     }

@@ -1,11 +1,14 @@
 package org.dice_research.cel.refine;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.collections.SetUtils;
+import org.apache.commons.io.IOUtils;
 import org.dice_research.cel.DescriptionLogic;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.ClassExpressionVisitor;
@@ -15,19 +18,26 @@ import org.dice_research.cel.expression.NegatingVisitor;
 import org.dice_research.cel.expression.ScoredClassExpression;
 import org.dice_research.cel.expression.SimpleQuantifiedRole;
 import org.dice_research.cel.refine.suggest.ClassExpressionUpdater;
+import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.ScoredIRI;
+import org.dice_research.cel.refine.suggest.SelectionScores;
 import org.dice_research.cel.refine.suggest.Suggestor;
 import org.dice_research.cel.score.ScoreCalculator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SuggestorBasedRefinementOperator implements RefinementOperator {
 
-    protected Suggestor suggestor;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SuggestorBasedRefinementOperator.class);
+
+    protected ExtendedSuggestor suggestor;
     protected ScoreCalculator scoreCalculator;
     protected Collection<String> positive;
     protected Collection<String> negative;
     protected DescriptionLogic logic;
+    protected OutputStream logStream;
 
-    public SuggestorBasedRefinementOperator(Suggestor suggestor, DescriptionLogic logic,
+    public SuggestorBasedRefinementOperator(ExtendedSuggestor suggestor, DescriptionLogic logic,
             ScoreCalculator scoreCalculator, Collection<String> positive, Collection<String> negative) {
         super();
         this.suggestor = suggestor;
@@ -42,7 +52,32 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         RecursivlyRefiningVisitor visitor = new RecursivlyRefiningVisitor(this, positive.size(), negative.size(),
                 logic);
         nextBestExpression.getClassExpression().accept(visitor);
-        return visitor.getResults();
+        Set<ScoredClassExpression> results = visitor.getResults();
+        logRefinementResults(nextBestExpression.getClassExpression(), results);
+        return results;
+    }
+
+    protected void logRefinementResults(ClassExpression baseExpression, Set<ScoredClassExpression> results) {
+        if (logStream != null) {
+            try {
+                logStream.write("\nRefining ".getBytes(StandardCharsets.UTF_8));
+                logStream.write(baseExpression.toString().getBytes(StandardCharsets.UTF_8));
+                logStream.write(" led to ".getBytes(StandardCharsets.UTF_8));
+                if (results.size() > 0) {
+                    logStream.write(Integer.toString(results.size()).getBytes(StandardCharsets.UTF_8));
+                    logStream.write(" new expressions:\n".getBytes(StandardCharsets.UTF_8));
+                    IOUtils.writeLines(results, "\n", logStream, StandardCharsets.UTF_8);
+                } else {
+                    logStream.write("no new expressions.\n".getBytes(StandardCharsets.UTF_8));
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Exception while writing to refinement logging stream.", e);
+            }
+        }
+    }
+
+    public void setLogStream(OutputStream logStream) {
+        this.logStream = logStream;
     }
 
     /**
@@ -83,16 +118,20 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             this.logic = logic;
         }
 
-        protected void addResult(ScoredIRI suggestion, ClassExpression newNode, boolean alsoAddNegation) {
+        protected void addResult(ScoredIRI suggestion, ClassExpression newNode) {
             // Add the suggestion
             ClassExpression newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
                     newNode, true);
-            results.add(parentOperator.scoreCalculator.score(newExpression, suggestion.getPosCount(),
-                    suggestion.getNegCount()));
+            addResult(newExpression, suggestion);
+        }
+
+        protected void addResult(ClassExpression newExpression, SelectionScores scores) {
+            results.add(
+                    parentOperator.scoreCalculator.score(newExpression, scores.getPosCount(), scores.getNegCount()));
             if (logic.supportsComplexConceptNegation()) {
                 // Add its negation
                 results.add(parentOperator.scoreCalculator.score(negator.negateExpression(newExpression),
-                        numberOfPositives - suggestion.getPosCount(), numberOfNegatives - suggestion.getNegCount()));
+                        numberOfPositives - scores.getPosCount(), numberOfNegatives - scores.getNegCount()));
             }
         }
 
@@ -100,7 +139,7 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             Collection<ScoredIRI> suggestions = parentOperator.suggestor.suggestClass(parentOperator.positive,
                     parentOperator.negative, context);
             suggestions.stream().filter(s -> !blacklist.contains(s.getIri()))
-                    .forEach(s -> addResult(s, new NamedClass(s.getIri()), logic.supportsComplexConceptNegation()));
+                    .forEach(s -> addResult(s, new NamedClass(s.getIri())));
             // If the logic supports atomic negation, we should ask for negated classes.
             // However, we only do that in cases in which the context is not simply the
             // position marker since the complex negation already covers these cases OR if
@@ -109,8 +148,8 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
                     || !context.equals(Suggestor.CONTEXT_POSITION_MARKER))) {
                 suggestions = parentOperator.suggestor.suggestNegatedClass(parentOperator.positive,
                         parentOperator.negative, context);
-                suggestions.stream().filter(s -> !blacklist.contains(s.getIri())).forEach(
-                        s -> addResult(s, new NamedClass(s.getIri(), true), logic.supportsComplexConceptNegation()));
+                suggestions.stream().filter(s -> !blacklist.contains(s.getIri()))
+                        .forEach(s -> addResult(s, new NamedClass(s.getIri(), true)));
             }
         }
 
@@ -237,7 +276,21 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             node.getTailExpression().accept(this);
             parentNode = oldparentNode;
             context = oldContext; // set the context back;
-            // TODO add to use a for all quantifier
+            // If 1) this node has the ∃ quantifier, 2) the logic that we use supports the ∀
+            // quantifier and 3) this node has something else than TOP as child, we could
+            // try a for all
+            // quantifier
+            if (node.isExists() && logic.supportsUniversalRestrictions()
+                    && !NamedClass.TOP.equals(node.getTailExpression())) {
+                newExpression = new SimpleQuantifiedRole(false, node.getRole(), node.isInverted(),
+                        node.getTailExpression().deepCopy());
+                newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER, newExpression,
+                        true);
+                SelectionScores scores = parentOperator.suggestor.scoreExpression(newExpression,
+                        parentOperator.positive, parentOperator.negative);
+                addResult(newExpression, scores);
+            }
+
             visitAnyNode(node, SetUtils.EMPTY_SET, Collections.singleton(node.getRole()));
         }
 
