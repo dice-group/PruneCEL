@@ -1,0 +1,22 @@
+package org.dice_research.cel.refine.suggest;
+
+import java.util.Collection;
+
+import org.dice_research.cel.expression.ClassExpression;
+
+public interface ExtendedSuggestor extends Suggestor {
+
+    /**
+     * This method scores a single expression based on the given positive and
+     * negative examples. Please note that this method can be quite <b>expensive</b>
+     * compared to the suggestion methods.
+     * 
+     * @param expression the expression that should be scored
+     * @param positive   the positive examples
+     * @param negative   the negative examples
+     * @return the scored expression based on the number of positive and negative
+     *         examples that the given expression selects
+     */
+    SelectionScores scoreExpression(ClassExpression expression, Collection<String> positive,
+            Collection<String> negative);
+}
