@@ -2,19 +2,26 @@ package org.dice_research.cel.expression;
 
 public class ScoredClassExpression {
 
-    private ClassExpression classExpression;
-    private double classificationScore;
-    private double refinementScore;
-    private int posCount;
-    private int negCount;
+    // TODO Add: where does this class expression "come from", i.e., what was the
+    // previous scored class expression (and it's score) and what has been added
+    // (NamedClass, Junction, Edge)
 
-    public ScoredClassExpression(ClassExpression classExpression, double classificationScore, double refinementScore, int posCount, int negCount) {
+    protected ClassExpression classExpression;
+    protected double classificationScore;
+    protected double refinementScore;
+    protected int posCount;
+    protected int negCount;
+    protected boolean addedEdge = false;
+
+    public ScoredClassExpression(ClassExpression classExpression, double classificationScore, double refinementScore,
+            int posCount, int negCount, boolean addedEdge) {
         super();
         this.classExpression = classExpression;
         this.classificationScore = classificationScore;
         this.refinementScore = refinementScore;
         this.posCount = posCount;
         this.negCount = negCount;
+        this.addedEdge = addedEdge;
     }
 
     @Override
@@ -121,6 +128,20 @@ public class ScoredClassExpression {
      */
     public void setRefinementScore(double refinementScore) {
         this.refinementScore = refinementScore;
+    }
+
+    /**
+     * @return the addedEdge
+     */
+    public boolean isAddedEdge() {
+        return addedEdge;
+    }
+
+    /**
+     * @param addedEdge the addedEdge to set
+     */
+    public void setAddedEdge(boolean addedEdge) {
+        this.addedEdge = addedEdge;
     }
 
     @Override

@@ -12,10 +12,10 @@ public interface ScoreCalculator {
         return classificationScore;
     }
 
-    default ScoredClassExpression score(ClassExpression ce, int posCount, int negCount) {
+    default ScoredClassExpression score(ClassExpression ce, int posCount, int negCount, boolean addedEdge) {
         double cScore = calculateClassificationScore(posCount, negCount);
         return new ScoredClassExpression(ce, cScore, calculateRefinementScore(posCount, negCount, cScore, ce), posCount,
-                negCount);
+                negCount, addedEdge);
     }
 
     double getPerfectScore();

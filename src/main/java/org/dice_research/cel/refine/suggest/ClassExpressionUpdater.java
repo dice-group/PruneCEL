@@ -22,8 +22,8 @@ public class ClassExpressionUpdater {
      * @return
      */
     public static ClassExpression update(ClassExpression original, ClassExpression oldSubExpression,
-            ClassExpression newSubExpression, boolean deepCopy) {
-        return update(original, ce -> ((ClassExpression) ce).equals(oldSubExpression), newSubExpression, deepCopy);
+            ClassExpression newSubExpression) {
+        return update(original, ce -> ((ClassExpression) ce).equals(oldSubExpression), newSubExpression);
     }
 
     /**
@@ -37,7 +37,7 @@ public class ClassExpressionUpdater {
      * @return
      */
     public static ClassExpression update(ClassExpression original, Predicate<ClassExpression> check,
-            ClassExpression newSubExpression, boolean deepCopy) {
+            ClassExpression newSubExpression) {
         ReplacingClassExpressionVisitor visitor = new ReplacingClassExpressionVisitor(check, newSubExpression);
         return visitor.createNewExpression(original);
     }
