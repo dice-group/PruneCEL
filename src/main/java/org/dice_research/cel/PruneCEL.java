@@ -305,12 +305,15 @@ public class PruneCEL {
 
             boolean printLogs = false;
 
+
+
             // recursive: find cluster by prototype itself
             PruneCEL cel = null;
             if(recursive) {
                 cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
             } else {
                  cel = new PruneCEL(suggestor, logic, factory);
+
             }
 
                 // XXX Max iterations of the refinement
