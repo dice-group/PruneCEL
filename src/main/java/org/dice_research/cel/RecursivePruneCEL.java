@@ -29,6 +29,7 @@ import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SelectionScores;
 import org.dice_research.cel.score.ScoreCalculator;
 import org.dice_research.cel.score.ScoreCalculatorFactory;
+import org.dice_research.cel.sparql.InstanceRetriever;
 import org.dice_research.topicmodeling.commons.collections.TopDoubleObjectCollection;
 import org.dice_research.topicmodeling.commons.collections.TopIntObjectCollection;
 import org.slf4j.Logger;
@@ -41,8 +42,9 @@ public class RecursivePruneCEL extends PruneCEL {
     protected ExecutorService executor = Executors.newCachedThreadPool();
 
     public RecursivePruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic,
-            ScoreCalculatorFactory calculatorFactory) {
+            ScoreCalculatorFactory calculatorFactory, InstanceRetriever retriever) {
         super(suggestor, logic, calculatorFactory);
+        this.retriever = retriever;
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
@@ -92,6 +94,7 @@ public class RecursivePruneCEL extends PruneCEL {
         @SuppressWarnings("unchecked")
         @Override
         public List<ScoredClassExpression> call() throws Exception {
+            LOGGER.info("Starting sub task!");
             // TODO implement the search (above) as a task
             // TODO the job is allowed to start a sub-task, if it finds an expression that
             // has precision = 1.0 (recall 1.0 would be possible as well, if we swap pos and
@@ -140,8 +143,7 @@ public class RecursivePruneCEL extends PruneCEL {
                                 || (newExpression.isAddedEdge()))) {
                             queue.add(newExpression);
                             topExpressions.add(newExpression.getClassificationScore(), newExpression);
-                            if (recursiveProblemSolving && (getPrecision(newExpression) >= precisionThreshold)
-                                    && (newExpression.getPosCount() > 1)
+                            if ((getPrecision(newExpression) >= precisionThreshold) && (newExpression.getPosCount() > 1)
                                     && (newExpression.getPosCount() < (positives.size() - 1))) {
                                 startSubTaskIfPossible(newExpression);
                             }
@@ -201,13 +203,15 @@ public class RecursivePruneCEL extends PruneCEL {
                 try {
                     subSolutions = finishedSubTask.result.get();
                     for (ScoredClassExpression subSolution : subSolutions) {
-                        ClassExpression newExpression = new Junction(false,
-                                finishedSubTask.parentExpression.getClassExpression(),
-                                subSolution.getClassExpression());
-                        SelectionScores scores = suggestor.scoreExpression(newExpression, positives, negatives);
-                        ScoredClassExpression scoredExp = scoreCalculator.score(newExpression, scores.getPosCount(),
-                                scores.getNegCount(), false);
-                        topExpressions.add(scoredExp.getClassificationScore(), scoredExp);
+                        if (subSolution != null) {
+                            ClassExpression newExpression = new Junction(false,
+                                    finishedSubTask.parentExpression.getClassExpression(),
+                                    subSolution.getClassExpression());
+                            SelectionScores scores = suggestor.scoreExpression(newExpression, positives, negatives);
+                            ScoredClassExpression scoredExp = scoreCalculator.score(newExpression, scores.getPosCount(),
+                                    scores.getNegCount(), false);
+                            topExpressions.add(scoredExp.getClassificationScore(), scoredExp);
+                        }
                     }
                 } catch (Exception e) {
                     LOGGER.error("Error while accessing the solution of a sub task. Ignoring it.", e);
@@ -220,7 +224,7 @@ public class RecursivePruneCEL extends PruneCEL {
             this.cancelled = true;
         }
 
-        public String generateKey(Set<String> remainingPositives) {
+        public static String generateKey(Set<String> remainingPositives) {
             return remainingPositives.stream().sorted()
                     .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
         }

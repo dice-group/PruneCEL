@@ -238,8 +238,8 @@ public class PruneCEL {
             boolean printLogs = false;
 
             // XXX We should use PruneCEL for now, you can try Recursive later
-            PruneCEL cel = new PruneCEL(suggestor, logic, factory);
-            // PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory);
+//            PruneCEL cel = new PruneCEL(suggestor, logic, factory);
+             PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
             cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
