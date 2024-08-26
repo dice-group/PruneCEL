@@ -48,7 +48,7 @@ public class RecursivePruneCEL extends PruneCEL {
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
             OutputStream logStream, long startTime, long timeToStop) {
         // ((SuggestorBasedRefinementOperator) rho).setLogStream(logStream);
-        Future<List<ScoredClassExpression>> result = executor.submit(new SearchTask(positive, negative));
+        Future<List<ScoredClassExpression>> result = executor.submit(new SearchTask(positive, negative,timeToStop));
         try {
             return result.get();
         } catch (Exception e) {
@@ -80,10 +80,11 @@ public class RecursivePruneCEL extends PruneCEL {
 
         public Map<String, SearchSubTask> subTasks = new HashMap<>();
 
-        public SearchTask(Collection<String> positives, Collection<String> negatives) {
+        public SearchTask(Collection<String> positives, Collection<String> negatives, long timeToStop) {
             super();
             this.positives = positives;
             this.negatives = negatives;
+            this.timeToStop = timeToStop;
             this.scoreCalculator = calculatorFactory.create(positives.size(), negatives.size());
             this.perfectScore = scoreCalculator.getPerfectScore();
             this.rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator, positives, negatives);
@@ -190,7 +191,7 @@ public class RecursivePruneCEL extends PruneCEL {
                 LOGGER.info("Removing positives selected by {}", preciseExp);
                 LOGGER.info("Trying to solve the remaining sub problem recursively for the remaining {} positives ...",
                         remainingPositives.size());
-                SearchTask subTask = new SearchTask(remainingPositives, negatives);
+                SearchTask subTask = new SearchTask(remainingPositives, negatives, timeToStop);
                 subTasks.put(remainingPosKey, new SearchSubTask(subTask, executor.submit(subTask), preciseExp));
             }
         }
