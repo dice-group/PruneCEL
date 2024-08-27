@@ -20,8 +20,10 @@ import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
-import org.dice_research.cel.io.JSONLearningProblemReader;
+import org.dice_research.cel.io.IntermediateResultPrinter;
 import org.dice_research.cel.io.LearningProblem;
+import org.dice_research.cel.io.csv.CSVIntermediateResultPrinter;
+import org.dice_research.cel.io.json.JSONLearningProblemReader;
 import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
@@ -70,18 +72,18 @@ public class PruneCEL {
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative) {
-        return findClassExpression(positive, negative, null);
+        return findClassExpression(positive, negative, null, null);
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
-            OutputStream logStream) {
+            OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         long startTime = System.currentTimeMillis();
         long timeToStop = startTime + maxTime;
-        return findClassExpression(positive, negative, logStream, startTime, timeToStop);
+        return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
-            OutputStream logStream, long startTime, long timeToStop) {
+            OutputStream logStream, IntermediateResultPrinter iResultPrinter, long startTime, long timeToStop) {
         TopDoubleObjectCollection<ScoredClassExpression> topExpressions = new TopDoubleObjectCollection<>(10, false);
         Set<ScoredClassExpression> seenExpressions = new HashSet<>();
         Queue<ScoredClassExpression> queue = new PriorityQueue<ScoredClassExpression>(
@@ -147,7 +149,7 @@ public class PruneCEL {
                 LOGGER.info("Trying to solve the remaining sub problem recursively for the remaining {} positives ...",
                         remainingPositives.size());
                 List<ScoredClassExpression> subProblemResults = findClassExpression(remainingPositives, negative,
-                        logStream, timeToCallRecursion, timeToStop);
+                        logStream, iResultPrinter, timeToCallRecursion, timeToStop);
                 if (subProblemResults.size() > 0) {
                     ClassExpression newExpression = new Junction(false, mostPrecise.getClassExpression(),
                             subProblemResults.get(0).getClassExpression());
@@ -239,7 +241,9 @@ public class PruneCEL {
 
             // XXX We should use PruneCEL for now, you can try Recursive later
 //            PruneCEL cel = new PruneCEL(suggestor, logic, factory);
-             PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
+            //PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
+            //PruneCEL cel = new SingleThreadRecursivePruneCEL(suggestor, logic, factory, suggestor);
+            PruneCEL cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
             cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
@@ -259,7 +263,7 @@ public class PruneCEL {
 //                                    new NamedClass("http://quans-namespace.org/#QUESTION")));
 //            suggestor.suggestClass(positives.get(0), negatives.get(0), ce);
             // DEBUG CODE END!!!
-            
+
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
             Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
@@ -269,13 +273,15 @@ public class PruneCEL {
                 for (LearningProblem problem : problems) {
                     if (printLogs) {
                         try (OutputStream logStream = new BufferedOutputStream(
-                                new FileOutputStream(problem.getName() + ".log"))) {
+                                new FileOutputStream(problem.getName() + ".log"));
+                                CSVIntermediateResultPrinter irp = new CSVIntermediateResultPrinter(
+                                        new PrintStream(problem.getName() + ".csv"))) {
                             runSearch(problem.getName(), problem.getPositiveExamples(), problem.getNegativeExamples(),
-                                    cel, pout, logStream);
+                                    cel, pout, logStream, irp);
                         }
                     } else {
                         runSearch(problem.getName(), problem.getPositiveExamples(), problem.getNegativeExamples(), cel,
-                                pout, null);
+                                pout, null, null);
                     }
                 }
 //                }
@@ -294,10 +300,10 @@ public class PruneCEL {
     }
 
     public static void runSearch(String name, List<String> positive, List<String> negative, PruneCEL cel,
-            PrintStream pout, OutputStream logStream) {
+            PrintStream pout, OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         System.out.println("Starting " + name);
         long time = System.currentTimeMillis();
-        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative, logStream);
+        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative, logStream, iResultPrinter);
         time = System.currentTimeMillis() - time;
         printClassExpressions(expressions, name, time, pout);
     }
