@@ -57,7 +57,7 @@ public abstract class AbstractCELTest {
 //            cel.setMaxTime(10000);
 
             List<ScoredClassExpression> expressions = cel.findClassExpression(Arrays.asList(positives),
-                    Arrays.asList(negatives), null);
+                    Arrays.asList(negatives), null, null);
             Assert.assertFalse("Didn't find any expressions.", expressions.isEmpty());
             // Compare the best expression
             StringBuilder builder = new StringBuilder();

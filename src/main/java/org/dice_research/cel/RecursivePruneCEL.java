@@ -23,6 +23,7 @@ import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
+import org.dice_research.cel.io.IntermediateResultPrinter;
 import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
@@ -48,7 +49,7 @@ public class RecursivePruneCEL extends PruneCEL {
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
-            OutputStream logStream, long startTime, long timeToStop) {
+            OutputStream logStream, IntermediateResultPrinter iResultPrinter, long startTime, long timeToStop) {
         // ((SuggestorBasedRefinementOperator) rho).setLogStream(logStream);
         Future<List<ScoredClassExpression>> result = executor.submit(new SearchTask(positive, negative,timeToStop));
         try {

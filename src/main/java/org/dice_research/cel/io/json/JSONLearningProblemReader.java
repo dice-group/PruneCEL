@@ -1,9 +1,11 @@
-package org.dice_research.cel.io;
+package org.dice_research.cel.io.json;
 
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.dice_research.cel.io.LearningProblem;
 
 import com.google.gson.stream.JsonReader;
 
