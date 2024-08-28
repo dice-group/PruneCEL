@@ -1,3 +1,0 @@
-Result,Name,Runtime (ms),Expressions
-Result,cluster_[1],3470ms,"ScoredClassExpression [classExpression=(∃http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot.∃https://nlp.stanford.edu/nlp#obj.⊤⊓∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.∃http://www.wikidata.org/prop/direct/P31.∃http://www.wikidata.org/prop/direct/P279.⊤), cScore=0.7997198879551821, rScore=0.7397198879551821, posCount=4, negCount=8]"
-

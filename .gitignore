@@ -1,3 +1,4 @@
+# Maven project
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -16,3 +17,15 @@ buildNumber.properties
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 .settings
+
+# IDEA specific
+.idea
+
+# Project related data
+*.csv
+*.log
+*.txt
+KGs*
+LPs*
+
+
