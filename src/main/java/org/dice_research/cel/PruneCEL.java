@@ -218,13 +218,13 @@ public class PruneCEL {
         // "http://localhost:3030/Mutagenesis/sparql"   Mutagenesis
         // "http://localhost:3030/Carcinogenesis/sparql"   Carcinogenesis
         // "http://localhost:9080/sparql"   QALD10
+        // "http://localhost:9070/sparql"   QALD9-plus-wikidata
+        // "http://localhost:9060/sparql"   QALD9-plus-dbpedia
 
         int n = 2;
 
-        // Loop through each binary combination for the first `n` bits
-        for (int i = 0; i < Math.pow(2, n); i++) {
-            String binaryString = String.format("%" + n + "s", Integer.toBinaryString(i)).replace(' ', '0');
-
+        String[] binaryStrings = {"01", "11"};
+        for (String binaryString : binaryStrings) {
             // Now loop through each possible value of the last digit (0, 1, 2)
             for (int j = 0; j < 3; j++) {
 
@@ -240,7 +240,7 @@ public class PruneCEL {
                 runPruneCEL("http://localhost:3030/Family/sparql" ,"ALC",accuracyfunction, true,
                         true, 1000000, 60000,Recursive, SetSkipNone,
                         "/home/quannian/Ontolearn_KG/LPs/Family/lps.json",
-                        "/home/quannian/Ontolearn_KG/Results/Test/"+ result +".csv",false);
+                        "/home/quannian/Ontolearn_KG/Results/Family/"+ result +".csv",false);
 
                 runPruneCEL("http://localhost:3030/Mutagenesis/sparql" ,"ALC",accuracyfunction, true,
                         true, 1000000, 60000,Recursive, SetSkipNone,
