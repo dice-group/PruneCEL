@@ -103,6 +103,9 @@ public class PruneCEL {
         nextBestExpression = scoreCalculator.score(NamedClass.TOP, positive.size(), negative.size(), false);
         queue.add(nextBestExpression);
         topExpressions.add(nextBestExpression.getClassificationScore(), nextBestExpression);
+        if (iResultPrinter != null) {
+            iResultPrinter.printIntermediateResults(topExpressions);
+        }
         int iterationCount = 0;
         long timeToCallRecursion = startTime + (maxTime - (long) (timeForRecursiveIteration * maxTime));
         // Iterate over the queue while
@@ -158,6 +161,9 @@ public class PruneCEL {
                             scores.getNegCount(), false);
                     topExpressions.add(scoredExp.getClassificationScore(), scoredExp);
                 }
+            }
+            if (iResultPrinter != null) {
+                iResultPrinter.printIntermediateResults(topExpressions);
             }
         }
         LOGGER.info("Stopping search. Saw {} expressions.", seenExpressions.size());
@@ -237,12 +243,13 @@ public class PruneCEL {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
             suggestor.addToPropertyBlackList(RDF.type.getURI());
 
-            boolean printLogs = false;
+            boolean printLogs = true;
 
             // XXX We should use PruneCEL for now, you can try Recursive later
 //            PruneCEL cel = new PruneCEL(suggestor, logic, factory);
-            //PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
-            //PruneCEL cel = new SingleThreadRecursivePruneCEL(suggestor, logic, factory, suggestor);
+            // PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
+            // PruneCEL cel = new SingleThreadRecursivePruneCEL(suggestor, logic, factory,
+            // suggestor);
             PruneCEL cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
             cel.setMaxIterations(1000);
@@ -303,7 +310,8 @@ public class PruneCEL {
             PrintStream pout, OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         System.out.println("Starting " + name);
         long time = System.currentTimeMillis();
-        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative, logStream, iResultPrinter);
+        List<ScoredClassExpression> expressions = cel.findClassExpression(positive, negative, logStream,
+                iResultPrinter);
         time = System.currentTimeMillis() - time;
         printClassExpressions(expressions, name, time, pout);
     }

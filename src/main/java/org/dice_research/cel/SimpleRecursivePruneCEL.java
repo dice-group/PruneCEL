@@ -68,6 +68,9 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
         nextBestExpression = scoreCalculator.score(NamedClass.TOP, positive.size(), negative.size(), false);
         queue.add(nextBestExpression);
         topExpressions.add(nextBestExpression.getClassificationScore(), nextBestExpression);
+        if (iResultPrinter != null) {
+            iResultPrinter.printIntermediateResults(topExpressions);
+        }
         int iterationCount = 0;
         // Iterate over the queue while
         while (// 1. the queue is not empty
@@ -141,6 +144,9 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
                 mostPreciseExpressions.clear();
             }
             iterationCount++;
+            if (iResultPrinter != null) {
+                iResultPrinter.printIntermediateResults(topExpressions);
+            }
         }
         LOGGER.info("Stopping search. Saw {} expressions.", seenExpressions.size());
         return Stream.of(topExpressions.getObjects()).map(o -> (ScoredClassExpression) o).toList();
