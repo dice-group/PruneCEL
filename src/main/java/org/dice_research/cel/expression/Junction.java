@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
+
 public class Junction implements ClassExpression, Iterable<ClassExpression> {
 
     private boolean isConjunction;
@@ -99,7 +101,7 @@ public class Junction implements ClassExpression, Iterable<ClassExpression> {
         if (children == null) {
             if (other.children != null)
                 return false;
-        } else if (!children.equals(other.children))
+        } else if (!CollectionUtils.isEqualCollection(children, other.children))
             return false;
         if (isConjunction != other.isConjunction)
             return false;

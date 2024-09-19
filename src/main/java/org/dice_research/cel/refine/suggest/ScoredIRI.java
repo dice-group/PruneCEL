@@ -1,14 +1,45 @@
 package org.dice_research.cel.refine.suggest;
 
+/**
+ * This data class is an extension of the {@link SelectionScores} class and
+ * stores an IRI together with its selection scores. It also stores whether the
+ * IRI has been inverted (which only makes sense if the IRI is used as a role).
+ * 
+ * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+ *
+ */
 public class ScoredIRI extends SelectionScores {
 
+    /**
+     * The IRI that has been scored.
+     */
     protected String iri;
+    /**
+     * A flag that indicates whether the {@link #iri} has to be used as an inverted
+     * role to achieve the score.
+     */
     protected boolean inverted;
 
+    /**
+     * Constructor.
+     * 
+     * @param iri      The IRI that has been scored
+     * @param posCount The number of positive examples that have been selected
+     * @param negCount The number of negative examples that have been selected
+     */
     public ScoredIRI(String iri, int posCount, int negCount) {
         this(iri, posCount, negCount, false);
     }
 
+    /**
+     * Constructor.
+     * 
+     * @param iri      The IRI that has been scored
+     * @param posCount The number of positive examples that have been selected
+     * @param negCount The number of negative examples that have been selected
+     * @param inverted A flag that indicates whether the given IRI has to be used as
+     *                 an inverted role to achieve the score
+     */
     public ScoredIRI(String iri, int posCount, int negCount, boolean inverted) {
         super(posCount, negCount);
         this.iri = iri;

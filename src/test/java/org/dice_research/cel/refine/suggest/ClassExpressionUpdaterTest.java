@@ -50,6 +50,6 @@ public class ClassExpressionUpdaterTest {
     @Test
     public void test() {
         Assert.assertEquals(expectedExpression,
-                ClassExpressionUpdater.update(givenExpression, subExpression, replacement, true));
+                ClassExpressionUpdater.update(givenExpression, subExpression, replacement));
     }
 }

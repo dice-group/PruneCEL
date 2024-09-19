@@ -4,6 +4,13 @@ import java.util.Collection;
 
 import org.dice_research.cel.expression.ClassExpression;
 
+/**
+ * An extension of the {@link Suggestor} interface that is able to score a given
+ * expression.
+ * 
+ * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+ *
+ */
 public interface ExtendedSuggestor extends Suggestor {
 
     /**

@@ -26,17 +26,54 @@ import org.dice_research.cel.score.ScoreCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This is an implementation of a refinement operator that is based on an
+ * {@link ExtendedSuggestor} to retrieve candidates for refinements.
+ * 
+ * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+ *
+ */
 public class SuggestorBasedRefinementOperator implements RefinementOperator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SuggestorBasedRefinementOperator.class);
 
+    /**
+     * The suggestor used to get suggestions for a further extension of a class
+     * expression.
+     */
     protected ExtendedSuggestor suggestor;
+    /**
+     * The class to score the single class expressions.
+     */
     protected ScoreCalculator scoreCalculator;
+    /**
+     * The set of positive examples.
+     */
     protected Collection<String> positive;
+    /**
+     * The set of negative examples.
+     */
     protected Collection<String> negative;
+    /**
+     * The description logic that should be used.
+     */
     protected DescriptionLogic logic;
+    /**
+     * An output stream to which this operator can log details about the refinement
+     * process. It is mainly used for debugging.
+     */
     protected OutputStream logStream;
 
+    /**
+     * Constructor.
+     * 
+     * @param suggestor       The suggestor used to get suggestions for a further
+     *                        extension of a class expression
+     * @param logic           The description logic that should be used
+     * @param scoreCalculator The class to score the single class expressions
+     * @param positive        The set of positive examples
+     * @param negative        The set of negative examples
+     */
     public SuggestorBasedRefinementOperator(ExtendedSuggestor suggestor, DescriptionLogic logic,
             ScoreCalculator scoreCalculator, Collection<String> positive, Collection<String> negative) {
         super();
@@ -57,6 +94,14 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         return results;
     }
 
+    /**
+     * Logs the given refinement results, i.e., the given base expression and the
+     * set of refinements are written to the {@link #logStream}, if the stream is
+     * not {@code null}. Otherwise, nothing happens.
+     * 
+     * @param baseExpression
+     * @param results
+     */
     protected void logRefinementResults(ClassExpression baseExpression, Set<ScoredClassExpression> results) {
         if (logStream != null) {
             try {
@@ -76,6 +121,12 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         }
     }
 
+    /**
+     * Sets an output stream to which this operator can log details about the
+     * refinement process. It is mainly used for debugging.
+     * 
+     * @param logStream
+     */
     public void setLogStream(OutputStream logStream) {
         this.logStream = logStream;
     }
@@ -118,20 +169,26 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             this.logic = logic;
         }
 
-        protected void addResult(ScoredIRI suggestion, ClassExpression newNode) {
+        protected void addResult(ScoredIRI suggestion, ClassExpression newNode, boolean addedEdge) {
             // Add the suggestion
             ClassExpression newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
-                    newNode, true);
-            addResult(newExpression, suggestion);
+                    newNode);
+            addResult(newExpression, suggestion, addedEdge);
         }
 
-        protected void addResult(ClassExpression newExpression, SelectionScores scores) {
-            results.add(
-                    parentOperator.scoreCalculator.score(newExpression, scores.getPosCount(), scores.getNegCount()));
+        protected void addResult(ClassExpression newExpression, SelectionScores scores, boolean addedEdge) {
+            // Check results for sanity
+            if ((scores.getPosCount() < 0) || (scores.getPosCount() > numberOfPositives) || (scores.getNegCount() < 0)
+                    || (scores.getPosCount() > numberOfNegatives)) {
+                LOGGER.error("Got wrong counts: #positives={}, #negatives={}, expression={}, scores={}",
+                        numberOfPositives, numberOfNegatives, newExpression, scores);
+            }
+            results.add(parentOperator.scoreCalculator.score(newExpression, scores.getPosCount(), scores.getNegCount(),
+                    addedEdge));
             if (logic.supportsComplexConceptNegation()) {
                 // Add its negation
                 results.add(parentOperator.scoreCalculator.score(negator.negateExpression(newExpression),
-                        numberOfPositives - scores.getPosCount(), numberOfNegatives - scores.getNegCount()));
+                        numberOfPositives - scores.getPosCount(), numberOfNegatives - scores.getNegCount(), addedEdge));
             }
         }
 
@@ -139,7 +196,7 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             Collection<ScoredIRI> suggestions = parentOperator.suggestor.suggestClass(parentOperator.positive,
                     parentOperator.negative, context);
             suggestions.stream().filter(s -> !blacklist.contains(s.getIri()))
-                    .forEach(s -> addResult(s, new NamedClass(s.getIri())));
+                    .forEach(s -> addResult(s, new NamedClass(s.getIri()), false));
             // If the logic supports atomic negation, we should ask for negated classes.
             // However, we only do that in cases in which the context is not simply the
             // position marker since the complex negation already covers these cases OR if
@@ -149,29 +206,31 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
                 suggestions = parentOperator.suggestor.suggestNegatedClass(parentOperator.positive,
                         parentOperator.negative, context);
                 suggestions.stream().filter(s -> !blacklist.contains(s.getIri()))
-                        .forEach(s -> addResult(s, new NamedClass(s.getIri(), true)));
+                        .forEach(s -> addResult(s, new NamedClass(s.getIri(), true), false));
             }
         }
 
         protected void addContextBasedRoleSuggestions(Set<String> blacklist) {
             Collection<ScoredIRI> suggestions = parentOperator.suggestor.suggestProperty(parentOperator.positive,
                     parentOperator.negative, context);
-            ClassExpression newExpression;
+//            ClassExpression newExpression;
             for (ScoredIRI suggestion : suggestions) {
                 if (!blacklist.contains(suggestion.getIri())) {
                     // Add the suggestion
-                    newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
-                            new SimpleQuantifiedRole(true, suggestion.getIri(), suggestion.isInverted(),
-                                    NamedClass.TOP),
-                            true);
-                    results.add(parentOperator.scoreCalculator.score(newExpression, suggestion.getPosCount(),
-                            suggestion.getNegCount()));
-                    if (logic.supportsComplexConceptNegation()) {
-                        // Add its negation
-                        results.add(parentOperator.scoreCalculator.score(negator.negateExpression(newExpression),
-                                numberOfPositives - suggestion.getPosCount(),
-                                numberOfNegatives - suggestion.getNegCount()));
-                    }
+//                    newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
+//                            new SimpleQuantifiedRole(true, suggestion.getIri(), suggestion.isInverted(),
+//                                    NamedClass.TOP),
+//                            true);
+                    addResult(suggestion, new SimpleQuantifiedRole(true, suggestion.getIri(), suggestion.isInverted(),
+                            NamedClass.TOP), true);
+//                    results.add(parentOperator.scoreCalculator.score(newExpression, suggestion.getPosCount(),
+//                            suggestion.getNegCount()));
+//                    if (logic.supportsComplexConceptNegation()) {
+//                        // Add its negation
+//                        results.add(parentOperator.scoreCalculator.score(negator.negateExpression(newExpression),
+//                                numberOfPositives - suggestion.getPosCount(),
+//                                numberOfNegatives - suggestion.getNegCount()));
+//                    }
                 }
             }
         }
@@ -202,12 +261,13 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             // Update context by adding a new junction
             ClassExpression oldContext = context;
             junction.getChildren().add(Suggestor.CONTEXT_POSITION_MARKER);
-            context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, junction, true);
+            context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, junction);
             addContextBasedClassSuggestions(classBlacklist);
             addContextBasedRoleSuggestions(roleBlacklist);
             // We are allowed to change the given conjunction into a disjunction
             if (switchFlag) {
-                junction.setConjunction(junction.isConjunction());
+                junction.setConjunction(!junction.isConjunction());
+                context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, junction);
                 addContextBasedClassSuggestions(classBlacklist);
                 addContextBasedRoleSuggestions(roleBlacklist);
             }
@@ -243,7 +303,7 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             children.add(Suggestor.CONTEXT_POSITION_MARKER);
             for (ClassExpression child : originalChildren) {
                 children.remove(child);
-                context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, node, true);
+                context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, node);
                 child.accept(this);
                 children.add(child);
             }
@@ -272,7 +332,7 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             ClassExpression oldContext = context;
             ClassExpression oldparentNode = parentNode;
             parentNode = node;
-            context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, newExpression, true);
+            context = ClassExpressionUpdater.update(oldContext, Suggestor.CONTEXT_POSITION_MARKER, newExpression);
             node.getTailExpression().accept(this);
             parentNode = oldparentNode;
             context = oldContext; // set the context back;
@@ -284,11 +344,11 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
                     && !NamedClass.TOP.equals(node.getTailExpression())) {
                 newExpression = new SimpleQuantifiedRole(false, node.getRole(), node.isInverted(),
                         node.getTailExpression().deepCopy());
-                newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER, newExpression,
-                        true);
+                newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
+                        newExpression);
                 SelectionScores scores = parentOperator.suggestor.scoreExpression(newExpression,
                         parentOperator.positive, parentOperator.negative);
-                addResult(newExpression, scores);
+                addResult(newExpression, scores, false);
             }
 
             visitAnyNode(node, SetUtils.EMPTY_SET, Collections.singleton(node.getRole()));
