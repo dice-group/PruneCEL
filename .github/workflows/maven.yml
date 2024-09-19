@@ -27,16 +27,6 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
-    - name: Move log4j properties
-      run: cp src/main/properties/log4j.properties src/test/resources/log4j.properties
-    - name: Prepare gerbil_data dir
-      run: |
-        mkdir -p "gerbil_data"
-        curl --retry 4 -L -o "gerbil_data/gerbil_data.zip" "https://files.dice-research.org/projects/GERBIL/gerbil_data-1.2.10.zip"
-        unzip "gerbil_data/gerbil_data.zip"
-        mkdir -p "gerbil_data/cache"
-    - name: Create keys file
-      run: touch src/main/properties/gerbil_keys.properties
     - name: Compile project
       run: mvn clean compile -DskipTests=true -Dmaven.javadoc.skip=true -B -V
     - name: Run tests
