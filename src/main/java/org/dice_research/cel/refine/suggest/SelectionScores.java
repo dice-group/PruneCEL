@@ -58,4 +58,15 @@ public class SelectionScores {
     public void setNegCount(int negCount) {
         this.negCount = negCount;
     }
+
+    /**
+     * Adds the given scores to the internal scores.
+     * 
+     * @param posCount
+     * @param negCount
+     */
+    public void add(int posCount, int negCount) {
+        this.posCount += posCount;
+        this.negCount += negCount;
+    }
 }

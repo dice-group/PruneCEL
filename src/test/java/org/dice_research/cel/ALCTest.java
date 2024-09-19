@@ -8,6 +8,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.Junction;
@@ -19,6 +20,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
 public class ALCTest extends AbstractCELTest {
+
+    public static void addTriple(Model model, String subject, String predicate, String object) {
+        model.add(model.getResource(subject), model.getProperty(predicate), model.getResource(object));
+    }
 
     @Parameters
     public static List<Object[]> parameters() {
@@ -41,16 +46,7 @@ public class ALCTest extends AbstractCELTest {
         Resource classC = ResourceFactory.createResource("http://example.org/classC");
 
         Property role1 = ResourceFactory.createProperty("http://example.org/role1");
-
-        // Basic example for concept disjunction
-        // A(pos1), B(pos2), C(neg1)
-        model = ModelFactory.createDefaultModel();
-        model.add(pos1, RDF.type, classA);
-        model.add(pos2, RDF.type, classB);
-        model.add(neg1, RDF.type, classC);
-        expected = new Junction(false, new NamedClass(classA.getURI()), new NamedClass(classB.getURI()));
-        testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
-                new String[] { neg1.getURI(), neg2.getURI() }, expected });
+        Property role2 = ResourceFactory.createProperty("http://example.org/role2");
 
         // Basic example for a single named concept
         // A(pos1,pos2),
@@ -58,6 +54,15 @@ public class ALCTest extends AbstractCELTest {
         model.add(pos1, RDF.type, classA);
         model.add(pos2, RDF.type, classA);
         expected = new NamedClass(classA.getURI());
+        testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI() }, expected });
+
+        // Basic example for a (limited) existential quantifier
+        // r(pos1,c), r(pos2,c)
+        model = ModelFactory.createDefaultModel();
+        model.add(pos1, role1, classC);
+        model.add(pos2, role1, classC);
+        expected = new SimpleQuantifiedRole(true, role1.getURI(), false, NamedClass.TOP);
         testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI() }, expected });
 
@@ -74,12 +79,22 @@ public class ALCTest extends AbstractCELTest {
         testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI() }, expected });
 
-        // Basic example for a (limited) existential quantifier
-        // r(pos1,c), r(pos2,c)
+        // Basic example for concept disjunction
+        // A(pos1), B(pos2), C(neg1)
         model = ModelFactory.createDefaultModel();
-        model.add(pos1, role1, classC);
-        model.add(pos2, role1, classC);
-        expected = new SimpleQuantifiedRole(true, role1.getURI(), false, NamedClass.TOP);
+        model.add(pos1, RDF.type, classA);
+        model.add(pos2, RDF.type, classB);
+        model.add(neg1, RDF.type, classC);
+        expected = new Junction(false, new NamedClass(classA.getURI()), new NamedClass(classB.getURI()));
+        testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI() }, expected });
+
+        // r1(pos1, x1), r2(pos2, x2)
+        model = ModelFactory.createDefaultModel();
+        model.add(pos1, role1, x1);
+        model.add(pos2, role2, x2);
+        expected = new Junction(false, new SimpleQuantifiedRole(true, role1.getURI(), false, NamedClass.TOP),
+                new SimpleQuantifiedRole(true, role2.getURI(), false, NamedClass.TOP));
         testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI() }, expected });
 
@@ -105,7 +120,7 @@ public class ALCTest extends AbstractCELTest {
         testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI() }, expected });
 
-        // Basic example for a universal quantifier
+        // Basic example for a universal quantifier (\forall r.A)
         // r(pos1,x1) r(pos1,x2) r(pos2,x2) r(neg1, x1) r(neg1, x3) r(neg2, x2) r(neg2,
         // x3) A(x1, x2)
         model = ModelFactory.createDefaultModel();
@@ -120,6 +135,34 @@ public class ALCTest extends AbstractCELTest {
         model.add(x1, RDF.type, classA);
         model.add(x2, RDF.type, classA);
         expected = new SimpleQuantifiedRole(false, role1.getURI(), false, new NamedClass(classA.getURI()));
+        testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI() }, expected });
+
+        // Example for an existential quantifier with a negated class (\exists r.not A)
+        // r(pos1,x1) r(pos1,x2) r(pos2,x2) r(neg1, x1) r(neg1, x3) r(neg2, x2) r(neg2,
+        // x3) A(x1, x2)
+        model = ModelFactory.createDefaultModel();
+        model.add(pos1, role1, x1);
+        model.add(pos1, role1, x2);
+        model.add(pos2, role1, x1);
+        model.add(pos2, role1, x2);
+        model.add(neg1, role1, x1);
+        model.add(neg2, role1, x1);
+        model.add(x1, RDF.type, classA);
+        expected = new SimpleQuantifiedRole(true, role1.getURI(), false, new NamedClass(classA.getURI(), true));
+        testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI() }, expected });
+
+        // Example for concept conjunction with a negated class
+        // A(pos1, pos2, neg1), B(neg2)
+        model = ModelFactory.createDefaultModel();
+        model.add(pos1, RDF.type, classA);
+        model.add(pos2, RDF.type, classA);
+        model.add(neg1, RDF.type, classA);
+        model.add(neg1, RDF.type, classB);
+        model.add(classA, RDF.type, OWL.Class);
+        model.add(classB, RDF.type, OWL.Class);
+        expected = new Junction(true, new NamedClass(classA.getURI()), new NamedClass(classB.getURI(), true));
         testCases.add(new Object[] { model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI() }, expected });
 

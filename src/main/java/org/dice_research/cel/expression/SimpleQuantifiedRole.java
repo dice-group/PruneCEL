@@ -89,7 +89,11 @@ public class SimpleQuantifiedRole implements ClassExpression {
             builder.append('-');
         }
         builder.append('.');
-        tailExpression.toString(builder);
+        if (tailExpression != null) {
+            tailExpression.toString(builder);
+        } else {
+            builder.append("null");
+        }
     }
 
     @Override

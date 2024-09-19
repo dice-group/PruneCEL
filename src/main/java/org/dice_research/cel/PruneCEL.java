@@ -12,7 +12,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Stream;
 
-
 import org.apache.commons.collections.SetUtils;
 import org.apache.jena.vocabulary.OWL2;
 import org.apache.jena.vocabulary.RDF;
@@ -249,7 +248,7 @@ public class PruneCEL {
             // suggestor);
             PruneCEL cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
-            cel.setMaxIterations(1000);
+            //cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
             cel.setMaxTime(60000);
             // XXX (Optional) try to avoid refining expressions that have not been created
@@ -271,6 +270,8 @@ public class PruneCEL {
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
             Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            // Collection<LearningProblem> problems =
+            // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
             try (PrintStream pout = new PrintStream("results.txt")) {
 //                for (int i = 0; i < names.size(); ++i) {

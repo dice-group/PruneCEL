@@ -177,6 +177,12 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         }
 
         protected void addResult(ClassExpression newExpression, SelectionScores scores, boolean addedEdge) {
+            // Check results for sanity
+            if ((scores.getPosCount() < 0) || (scores.getPosCount() > numberOfPositives) || (scores.getNegCount() < 0)
+                    || (scores.getPosCount() > numberOfNegatives)) {
+                LOGGER.error("Got wrong counts: #positives={}, #negatives={}, expression={}, scores={}",
+                        numberOfPositives, numberOfNegatives, newExpression, scores);
+            }
             results.add(parentOperator.scoreCalculator.score(newExpression, scores.getPosCount(), scores.getNegCount(),
                     addedEdge));
             if (logic.supportsComplexConceptNegation()) {
