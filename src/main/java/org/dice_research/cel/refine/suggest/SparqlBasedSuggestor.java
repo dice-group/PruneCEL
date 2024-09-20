@@ -493,7 +493,10 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
                 for (ClassExpression expression : expressions) {
                     SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null);
                     visitor.setIntermediateVariableName("?y");
-                    filterBuilder.append("FILTER NOT EXISTS { ");
+                    filterBuilder.append("FILTER NOT EXISTS { \n        ");
+                    // We have to add a dummy triple
+                    filterBuilder.append(instanceVariable);
+                    filterBuilder.append(" a <http://www.w3.org/2002/07/owl#NamedIndividual> . \n");
                     expression.accept(visitor);
                     filterBuilder.append(" }\n");
                 }
