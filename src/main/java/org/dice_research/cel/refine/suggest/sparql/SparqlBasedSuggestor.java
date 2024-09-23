@@ -1,11 +1,8 @@
-package org.dice_research.cel.refine.suggest;
+package org.dice_research.cel.refine.suggest.sparql;
 
 import java.net.http.HttpClient;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -20,15 +17,15 @@ import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.sparql.core.DatasetDescription;
 import org.apache.jena.vocabulary.OWL;
-import org.apache.jena.vocabulary.OWL2;
+import org.apache.jena.vocabulary.RDF;
 import org.dice_research.cel.DescriptionLogic;
 import org.dice_research.cel.expression.ClassExpression;
-import org.dice_research.cel.expression.ClassExpressionVisitingCreator;
-import org.dice_research.cel.expression.ClassExpressionVisitor;
 import org.dice_research.cel.expression.Junction;
-import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.NegatingVisitor;
-import org.dice_research.cel.expression.SimpleQuantifiedRole;
+import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
+import org.dice_research.cel.refine.suggest.ScoredIRI;
+import org.dice_research.cel.refine.suggest.SelectionScores;
+import org.dice_research.cel.refine.suggest.Suggestor;
 import org.dice_research.cel.sparql.InstanceRetriever;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +41,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     protected Set<String> propertyBlackList = new HashSet<String>();
     protected DescriptionLogic logic;
     protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
+    protected SuggestionCheckingVisitor sugChecker = new SuggestionCheckingVisitor();
     protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
 
     public SparqlBasedSuggestor(QueryExecutionFactory queryExecFactory, DescriptionLogic logic) {
@@ -53,70 +51,54 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
 
     @Override
     public void close() throws Exception {
-        queryExecFactory.close();
+        if (queryExecFactory != null) {
+            queryExecFactory.close();
+        }
     }
 
-    protected Collection<ScoredIRI> performQuery(String query, Function<QuerySolution, ScoredIRI> transformation,
-            int numPositives, int numNegatives, Collection<ScoredIRI> results) {
-        LOGGER.trace("Sending query {}", query);
+    protected Collection<ScoredIRI> performQuery(SuggestionData data, Collection<String> positive,
+            Collection<String> negative, Function<QuerySolution, ScoredIRI> transformation,
+            Collection<ScoredIRI> results) {
+        // Execute base query
+        if (data.basePart != null) {
+            data.setBaseCounts(scorePreparedExpression(data.basePart, positive, negative));
+        }
+
+        LOGGER.trace("Sending query {}", data.suggestionQuery);
         // Create the query execution with try-catch to ensure that it will be closed
-        try (QueryExecution qe = queryExecFactory.createQueryExecution(query);) {
+        try (QueryExecution qe = queryExecFactory.createQueryExecution(data.suggestionQuery);) {
             ResultSet result = qe.execSelect();
             ScoredIRI sIri;
-            ScoredIRI baseScore = null;
             List<ScoredIRI> scoredIris = new ArrayList<>();
             while (result.hasNext()) {
                 sIri = transformation.apply(result.next());
-                if (sIri != null) {
-                    if (sIri.iri != null) {
-                        scoredIris.add(sIri);
-                    } else {
-                        // If there is no IRI, we have a query with a context that selects results even
-                        // without using the IRIs we are asking for (most probably by using a UNION)
-                        baseScore = sIri;
-                    }
+                if ((sIri != null) && ((sIri.posCount + sIri.negCount) > 0)) {
+                    scoredIris.add(sIri);
                 }
+                // else: we found a blank node or a filtered IRI. OR we found IRIs that do not
+                // have any count > 0. We can ignore them.
             }
-            if (baseScore != null) {
-                // Add the base score to all results
-                final ScoredIRI b = baseScore;
-                scoredIris.forEach(s -> s.add(b.posCount, b.negCount));
-            }
+            data.addBaseScore(scoredIris);
             Optional<ScoredIRI> faultyResult = scoredIris.stream().filter(
-                    s -> s.posCount < 0 || s.posCount > numPositives || s.negCount < 0 || s.posCount > numNegatives)
+                    s -> s.posCount < 0 || s.posCount > data.maxPos || s.negCount < 0 || s.posCount > data.maxNeg)
                     .findFirst();
             if (faultyResult.isPresent()) {
-                LOGGER.error("Got a faulty count: #positives={}, #negatives={}, scoredIRI={}", numPositives,
-                        numNegatives, faultyResult);
+                LOGGER.error("Got a faulty count: #positives={}, #negatives={}, scoredIRI={}", data.maxPos, data.maxNeg,
+                        faultyResult);
             }
             results.addAll(scoredIris);
             // Check whether there is a
             return results;
         } catch (Exception e) {
-            LOGGER.error("Exception while executing SPARQL request. query=" + query, e);
+            LOGGER.error("Exception while executing SPARQL request. query=" + data.suggestionQuery, e);
             throw e;
         }
     }
 
-    protected Collection<ScoredIRI> performClassSelection(String query, int numPositives, int numNegatives) {
+    protected Collection<ScoredIRI> performClassSelection(SuggestionData data, Collection<String> positive,
+            Collection<String> negative) {
         List<ScoredIRI> results = new ArrayList<>();
-        performQuery(query, new ScoredIriQuerySolutionMapper("?class", classBlackList), numPositives, numNegatives,
-                results);
-//        performQuery(query, new Function<QuerySolution, ScoredIRI>() {
-//            @Override
-//            public ScoredIRI apply(QuerySolution s) {
-//                if (s.contains("?class")) {
-//                    String iri = s.getResource("?class").getURI();
-//                    if (!classBlackList.contains(iri)) {
-//                        return new ScoredIRI(s.getResource("?class").getURI(), s.getLiteral("posHits").getInt(),
-//                                s.getLiteral("negHits").getInt());
-//                    }
-//                } else {
-//                    return new ScoredIRI(null, s.getLiteral("posHits").getInt(), s.getLiteral("negHits").getInt());
-//                }
-//                return null;
-//            }
-//        }, results);
+        performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?class", classBlackList), results);
         return results;
     }
 
@@ -128,26 +110,82 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         }
     }
 
+    protected SuggestionData prepareForSuggestion(ClassExpression ce, int numPositives, int numNegatives) {
+        SuggestionData data = new SuggestionData();
+        data.maxPos = numPositives;
+        data.maxNeg = numNegatives;
+        if (checker.containsDisjunction(ce)) {
+            ClassExpression normalForm = preprocessor.preprocess(ce);
+            splitExpression(normalForm, data);
+        } else {
+            data.suggestionPart = ce;
+        }
+        return data;
+    }
+
+    protected void splitExpression(ClassExpression normalForm, SuggestionData data) {
+        if (!(normalForm instanceof Junction) || ((Junction) normalForm).isConjunction()) {
+            LOGGER.error("Something went wrong. Expected a disjunction at this point.");
+        }
+        // Split the expression into the two parts
+        List<ClassExpression> baseExp = new ArrayList<ClassExpression>();
+        List<ClassExpression> sugExp = new ArrayList<ClassExpression>();
+        for (ClassExpression child : ((Junction) normalForm)) {
+            if (child.accept(sugChecker)) {
+                sugExp.add(child);
+            } else {
+                baseExp.add(child);
+            }
+        }
+        if (sugExp.isEmpty()) {
+            LOGGER.error("Got an expression without the suggestion marker. This is not expected at this point.");
+            return;
+        }
+        if (!baseExp.isEmpty()) {
+            if (baseExp.size() > 1) {
+                data.basePart = new Junction(false, baseExp.toArray(ClassExpression[]::new));
+            } else {
+                data.basePart = baseExp.get(0);
+            }
+            // Add the negation to the suggestion children
+            ClassExpression baseNegation = data.basePart.accept(new NegatingVisitor());
+            for (int i = 0; i < sugExp.size(); ++i) {
+                ClassExpression sugChild = sugExp.get(i);
+                if ((sugChild instanceof Junction) && ((Junction) sugChild).isConjunction()) {
+                    // We can add the negations directly to the existing conjunction
+                    ((Junction) sugChild).getChildren().add(baseNegation);
+                } else {
+                    // We create a new conjunction
+                    sugExp.set(i, new Junction(true, sugChild));
+                }
+            }
+        }
+        if (sugExp.size() > 1) {
+            data.suggestionPart = prepareClassExpression(new Junction(false, sugExp.toArray(ClassExpression[]::new)));
+        } else {
+            data.suggestionPart = sugExp.get(0);
+        }
+    }
+
     @Override
     public Collection<ScoredIRI> suggestClass(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
-        String query;
         LOGGER.trace("Suggesting classes for {}", context);
-        ClassExpression prepared = prepareClassExpression(context);
+        SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
         if (logic.supportsComplexConceptNegation()) {
-            query = generateClassQueryForGeneralNegation(positive, negative, prepared);
+            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart);
         } else {
-            query = generateClassQuery(positive, negative, prepared);
+            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart);
         }
-        return performClassSelection(query, positive.size(), negative.size());
+        return performClassSelection(data, positive, negative);
     }
 
     public Collection<ScoredIRI> suggestNegatedClass(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
         LOGGER.trace("Suggesting negated classes for {}", context);
-        ClassExpression prepared = prepareClassExpression(context);
-        return performClassSelection(generateNegatedClassQuery(positive, negative, prepared), positive.size(),
-                negative.size());
+        SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
+        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart);
+        return performClassSelection(data, positive, negative);
     }
 
     /**
@@ -169,7 +207,8 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                createNotExistsFilter(context, "?pos"), v -> v + " a ?class .");
+                // createNotExistsFilter(context, "?pos")
+                null, "?class a <" + OWL.Class.getURI() + "> .", v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -205,7 +244,8 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                createNotExistsFilter(context, "?pos"),
+                // createNotExistsFilter(context, "?pos"),
+                null, "?class a <" + OWL.Class.getURI() + "> .",
                 v -> "?class a <" + OWL.Class.getURI() + "> .        \nFILTER NOT EXISTS { " + v + " a ?class . }");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
@@ -245,7 +285,8 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                createNotExistsFilter(context, "?pos"), v -> v + " a ?class .");
+                // createNotExistsFilter(context, "?pos"),
+                null, "?class a <" + OWL.Class.getURI() + "> .", v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -267,46 +308,25 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     public Collection<ScoredIRI> suggestProperty(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
         LOGGER.trace("Suggesting properties for {}", context);
-        ClassExpression prepared = prepareClassExpression(context);
-        Collection<ScoredIRI> results = suggestProperty(positive, negative, prepared, false);
+        SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
+        Collection<ScoredIRI> results = suggestProperty(data, positive, negative, false);
         if (logic.supportsInverseProperties()) {
-            results.addAll(suggestProperty(positive, negative, prepared, true));
+            results.addAll(suggestProperty(data, positive, negative, true));
         }
         return results;
     }
 
-    protected Collection<ScoredIRI> suggestProperty(Collection<String> positive, Collection<String> negative,
-            ClassExpression context, boolean inverted) {
+    protected Collection<ScoredIRI> suggestProperty(SuggestionData data, Collection<String> positive,
+            Collection<String> negative, boolean inverted) {
         List<ScoredIRI> results = new ArrayList<>();
-        String query;
         if (logic.supportsAtomicNegation()) {
-            query = generatePropertyQuery(positive, negative, context, inverted);
+            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, inverted);
         } else {
-            query = generatePropertyQueryWithoutNegation(positive, negative, context, inverted);
+            data.suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart,
+                    inverted);
         }
-        performQuery(query, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), positive.size(),
-                negative.size(), results);
+        performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), results);
         return results;
-//        LOGGER.trace("Sending query {}", query);
-//        // Create the query execution with try-catch to ensure that it will be closed
-//        try (QueryExecution qe = queryExecFactory.createQueryExecution(query);) {
-//            ResultSet result = qe.execSelect();
-//            String iri;
-//            while (result.hasNext()) {
-//                QuerySolution s = result.next();
-//                if (s.contains("?prop")) {
-//                    iri = s.getResource("?prop").getURI();
-//                    if (!propertyBlackList.contains(iri)) {
-//                        results.add(new ScoredIRI(s.getResource("?prop").getURI(), s.getLiteral("posHits").getInt(),
-//                                s.getLiteral("negHits").getInt(), inverted));
-//                    }
-//                }
-//            }
-//            return results;
-//        } catch (Exception e) {
-//            LOGGER.error("Exception while executing SPARQL request. query=" + query, e);
-//            throw e;
-//        }
     }
 
     protected String generatePropertyQuery(Collection<String> positive, Collection<String> negative,
@@ -317,7 +337,9 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                createNotExistsFilter(context, "?pos"), inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
+                // createNotExistsFilter(context, "?pos")
+                null, "?prop a <" + RDF.Property.getURI() + "> .",
+                inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -343,7 +365,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString, null,
-                inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
+                "?prop a <" + RDF.Property.getURI() + "> .", inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -380,7 +402,11 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     public SelectionScores scoreExpression(ClassExpression expression, Collection<String> positive,
             Collection<String> negative) {
         LOGGER.trace("Scoring expression {}", expression);
-        ClassExpression prepared = prepareClassExpression(expression);
+        return scorePreparedExpression(prepareClassExpression(expression), positive, negative);
+    }
+
+    protected SelectionScores scorePreparedExpression(ClassExpression prepared, Collection<String> positive,
+            Collection<String> negative) {
         String query = generateScoreQueryForGeneralNegation(positive, negative, prepared);
         LOGGER.trace("Sending query {}", query);
         // Create the query execution with try-catch to ensure that it will be closed
@@ -389,14 +415,13 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             if (result.hasNext()) {
                 QuerySolution s = result.next();
                 return new SelectionScores(s.getLiteral("posHits").getInt(), s.getLiteral("negHits").getInt());
-            } else {
-                LOGGER.warn("Got an empty result fo the expression {}. Returning a zero score.", expression);
-                return new SelectionScores(0, 0);
             }
         } catch (Exception e) {
             LOGGER.error("Exception while executing SPARQL request. query=" + query, e);
             throw e;
         }
+        LOGGER.warn("Got an empty result fo the expression {}. Returning a zero score.", prepared);
+        return new SelectionScores(0, 0);
     }
 
     protected String generateScoreQueryForGeneralNegation(Collection<String> positive, Collection<String> negative,
@@ -406,7 +431,8 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         queryBuilder.append("    { SELECT (COUNT(DISTINCT ?pos) AS ?posHits) WHERE {\n        ");
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString, null, v -> "");
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString, null, null,
+                v -> "");
         expression.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -450,7 +476,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         String valuesString = generateValuesStmt("?instance",
                 Iterators.concat(positive.iterator(), negative.iterator()));
         StringBuilder contextBuilder = new StringBuilder();
-        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?instance", valuesString, null,
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?instance", valuesString, null, null,
                 v -> "");
         expression.accept(visitor);
         String contextString = contextBuilder.toString();
@@ -479,6 +505,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         queryBuilder.append(" }\n");
     }
 
+    @Deprecated
     protected String createNotExistsFilter(ClassExpression context, String instanceVariable) {
         String filter = null;
         if (context instanceof Junction) {
@@ -491,7 +518,8 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
                 // 2. Use the remaining part as filter
                 StringBuilder filterBuilder = new StringBuilder();
                 for (ClassExpression expression : expressions) {
-                    SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null);
+                    SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null,
+                            null);
                     visitor.setIntermediateVariableName("?y");
                     filterBuilder.append("FILTER NOT EXISTS { \n        ");
                     // We have to add a dummy triple
@@ -500,6 +528,11 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
                     expression.accept(visitor);
                     filterBuilder.append(" }\n");
                 }
+//                ClassExpression filterExpression = new Junction(false, expressions.toArray(ClassExpression[]::new));
+//                filterExpression =  filterExpression.accept(new NegatingVisitor());
+//                SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null);
+//                visitor.setIntermediateVariableName("?y");
+//                filterExpression.accept(visitor);
                 filter = filterBuilder.toString();
             }
         }
@@ -524,373 +557,6 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         QueryExecutionFactory queryExecFactory = new QueryExecutionFactoryHttp(endpoint, new DatasetDescription(),
                 client);
         return new SparqlBasedSuggestor(queryExecFactory, logic);
-    }
-
-    public static class ScoredIriQuerySolutionMapper implements Function<QuerySolution, ScoredIRI> {
-        protected String iriVariable;
-        protected Set<String> blacklist;
-
-        public ScoredIriQuerySolutionMapper(String iriVariable, Set<String> blacklist) {
-            super();
-            this.iriVariable = iriVariable;
-            this.blacklist = blacklist;
-        }
-
-        @Override
-        public ScoredIRI apply(QuerySolution s) {
-            if (s.contains(iriVariable)) {
-                String iri = s.getResource(iriVariable).getURI();
-                if (iri != null) {
-                    if (!blacklist.contains(iri)) {
-                        return new ScoredIRI(s.getResource(iriVariable).getURI(), s.getLiteral("posHits").getInt(),
-                                s.getLiteral("negHits").getInt());
-                    }
-                } else {
-                    // FIXME We found a blank node. Let's ignore it.
-                    return null;
-                }
-            } else {
-                return new ScoredIRI(null, s.getLiteral("posHits").getInt(), s.getLiteral("negHits").getInt());
-            }
-            return null;
-        }
-    }
-
-    /**
-     * FIXME Before transforming the expression to a SPARQL query, we should move
-     * all disjunctions/UNION up the tree to ensure that they are the root node of
-     * the expression. Otherwise, we will always face performance issues on some
-     * SPARQL stores.
-     * 
-     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
-     *
-     */
-    public static class SparqlBuildingVisitor implements ClassExpressionVisitor {
-
-        protected static final String INTERMEDIATE_VARIABLE_NAME = "?x";
-
-        protected StringBuilder queryBuilder;
-        protected Deque<String> variables = new ArrayDeque<String>();
-        protected String valuesString;
-        protected String filterString;
-        protected String intermediateVariableName = INTERMEDIATE_VARIABLE_NAME;
-        protected int nextVariableId = 0;
-        protected boolean isRoot = true;
-        protected Function<String, String> variableToStmtOnMarkedPosition;
-        protected NegatingVisitor negator = new NegatingVisitor();
-
-        /**
-         * Constructor.
-         * 
-         * @param queryBuilder                   String builder to which the generated
-         *                                       SPARQL will be added
-         * @param firstVariable                  the name of the first variable
-         *                                       (starting with the '?' character)
-         * @param valuesString                   the VALUES statement binding the given
-         *                                       first variable to a set of values (can
-         *                                       be null)
-         * @param filterString                   an additional filter that should be
-         *                                       added to the selected variable (can be
-         *                                       null)
-         * @param variableToStmtOnMarkedPosition the function that transforms the given
-         *                                       variable name into the select statement
-         *                                       that is expected at the marked position
-         *                                       within the context to which this
-         *                                       visitor is applied
-         */
-        public SparqlBuildingVisitor(StringBuilder queryBuilder, String firstVariable, String valuesString,
-                String filterString, Function<String, String> variableToStmtOnMarkedPosition) {
-            super();
-            this.queryBuilder = queryBuilder;
-            this.valuesString = valuesString;
-            this.filterString = filterString;
-            this.variableToStmtOnMarkedPosition = variableToStmtOnMarkedPosition;
-            variables.addFirst(firstVariable);
-        }
-
-        protected String getNextVariable() {
-            return intermediateVariableName + nextVariableId++;
-        }
-
-        @Override
-        public void visitNamedClass(NamedClass node) {
-            // If this is the root node, we can simply add the values
-            if (isRoot) {
-                if (valuesString != null) {
-                    queryBuilder.append(valuesString);
-                }
-            }
-            // Check if this is the marked position
-            if (Suggestor.CONTEXT_POSITION_MARKER.equals(node)) {
-                queryBuilder.append("        ");
-                queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
-                queryBuilder.append('\n');
-                if (filterString != null) {
-                    queryBuilder.append("        ");
-                    queryBuilder.append(filterString);
-                    queryBuilder.append('\n');
-                }
-            } else if (NamedClass.TOP.equals(node)) {
-                // Nothing to do
-            } else if (NamedClass.BOTTOM.equals(node)) {
-                queryBuilder.append("        ");
-                queryBuilder.append(variables.peek());
-                queryBuilder.append(" a <");
-                queryBuilder.append(OWL2.Nothing.getURI());
-                queryBuilder.append("> .\n");
-            } else {
-                if (node.isNegated()) {
-                    queryBuilder.append("        FILTER NOT EXISTS { ");
-                    queryBuilder.append(variables.peek());
-                    queryBuilder.append(" a <");
-                    queryBuilder.append(node.getName());
-                    queryBuilder.append("> . }\n");
-                } else {
-                    queryBuilder.append("        ");
-                    queryBuilder.append(variables.peek());
-                    queryBuilder.append(" a <");
-                    queryBuilder.append(node.getName());
-                    queryBuilder.append("> .\n");
-                }
-            }
-        }
-
-        @Override
-        public void visitJunction(Junction node) {
-            // If this is a conjunction, we can simply visit all children and let them add
-            // their triple patterns
-            if (node.isConjunction()) {
-                // If this is the root node, we can simply add the values
-                if (isRoot) {
-                    if (valuesString != null) {
-                        queryBuilder.append(valuesString);
-                    }
-                }
-                boolean oldRoot = isRoot;
-                isRoot = false;
-                for (ClassExpression child : node.getChildren()) {
-                    child.accept(this);
-                }
-                isRoot = oldRoot;
-            } else {
-                // This is a disjunction, so we have to create UNION statements
-                boolean first = true;
-                queryBuilder.append("        {\n");
-                for (ClassExpression child : node.getChildren()) {
-                    if (first) {
-                        first = false;
-                    } else {
-                        queryBuilder.append("        } UNION {\n");
-                    }
-                    // Note: we do not change the isRoot flag, because if the disjunction is the
-                    // root node, the children of the disjunction need to know the VALUES
-                    // restriction.
-                    child.accept(this);
-                }
-                queryBuilder.append("        }\n");
-            }
-        }
-
-        @Override
-        public void visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            // If this is the root node, we can simply add the values
-            if (isRoot) {
-                if (valuesString != null) {
-                    queryBuilder.append(valuesString);
-                }
-            }
-            if (node.isExists()) {
-                String nextVariable = getNextVariable();
-                // Ensure that there is a connection to at least one node that fulfills the tail
-                // node
-                queryBuilder.append("        ");
-                queryBuilder.append(node.isInverted() ? nextVariable : variables.peek());
-                queryBuilder.append(" <");
-                queryBuilder.append(node.getRole());
-                queryBuilder.append("> ");
-                queryBuilder.append(node.isInverted() ? variables.peek() : nextVariable);
-                queryBuilder.append(" .\n");
-                boolean oldRoot = isRoot;
-                isRoot = false;
-                variables.addFirst(nextVariable);
-                node.getTailExpression().accept(this);
-                variables.removeFirst();
-                isRoot = oldRoot;
-            } else {
-                // Ensure that for all possible instantiations of the tail node, they do not
-                // fulfill the negation of the tail node expression.
-                queryBuilder.append("        FILTER NOT EXISTS {\n");
-                ClassExpression negation = negator.negateExpression(node);
-                boolean oldRoot = isRoot;
-                isRoot = false;
-                negation.accept(this);
-                isRoot = oldRoot;
-                // Close the bracket of the FILTER statement
-                queryBuilder.append("        }\n");
-            }
-        }
-
-        /**
-         * @param intermediateVariableName the intermediateVariableName to set
-         */
-        public void setIntermediateVariableName(String intermediateVariableName) {
-            this.intermediateVariableName = intermediateVariableName;
-        }
-
-    }
-
-    /**
-     * A simple visitor that checks whether the expression contains a disjunction.
-     * 
-     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
-     *
-     */
-    public static class DisjunctionCheckingVisitor implements ClassExpressionVisitingCreator<Boolean> {
-
-        public boolean containsDisjunction(ClassExpression ce) {
-            return ce.accept(this);
-        }
-
-        @Override
-        public Boolean visitNamedClass(NamedClass node) {
-            return Boolean.FALSE;
-        }
-
-        @Override
-        public Boolean visitJunction(Junction node) {
-            if (node.isConjunction()) {
-                for (ClassExpression child : node.getChildren()) {
-                    if (child.accept(this)) {
-                        return Boolean.TRUE;
-                    }
-                }
-                return Boolean.FALSE;
-            } else {
-                return Boolean.TRUE;
-            }
-        }
-
-        @Override
-        public Boolean visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            return node.getTailExpression().accept(this);
-        }
-
-    }
-
-    public static class ExpressionPreProcessor implements ClassExpressionVisitingCreator<ClassExpression[]> {
-
-        public ClassExpression preprocess(ClassExpression ce) {
-            ClassExpression[] subExpressions = ce.accept(this);
-            if (subExpressions.length == 1) {
-                return subExpressions[0];
-            } else {
-                return new Junction(false, subExpressions);
-            }
-        }
-
-        @Override
-        public ClassExpression[] visitNamedClass(NamedClass node) {
-            return new ClassExpression[] { node };
-        }
-
-        @Override
-        public ClassExpression[] visitJunction(Junction node) {
-            List<ClassExpression> expressions = new ArrayList<>(node.getChildren().size());
-            if (node.isConjunction()) {
-                // Create all possible combinations of the arrays that we get.
-                ClassExpression[][] arrays = new ClassExpression[node.getChildren().size()][];
-                int pos = 0;
-                for (ClassExpression child : node.getChildren()) {
-                    arrays[pos] = child.accept(this);
-                    ++pos;
-                }
-                int indexes[] = new int[arrays.length];
-                ClassExpression[] combination = new ClassExpression[arrays.length];
-                boolean moreCombinations = true;
-                while (moreCombinations) {
-                    // Create new combination according to indexes
-                    for (int i = 0; i < indexes.length; ++i) {
-                        combination[i] = arrays[i][indexes[i]];
-                    }
-                    expressions.add(new Junction(true, combination));
-                    // increase indexes (works like a clock / counter)
-                    pos = 0;
-                    ++indexes[0];
-                    while ((pos < indexes.length) && (indexes[pos] >= arrays[pos].length)) {
-                        indexes[pos] = 0;
-                        ++pos;
-                        if (pos < indexes.length) {
-                            ++indexes[pos];
-                        } else {
-                            // We saw all combinations
-                            moreCombinations = false;
-                        }
-                    }
-                }
-            } else {
-                // We simply forward all results of the children
-                ClassExpression[] currentArray;
-                for (ClassExpression child : node.getChildren()) {
-                    currentArray = child.accept(this);
-                    Collections.addAll(expressions, currentArray);
-                }
-            }
-            return expressions.toArray(ClassExpression[]::new);
-        }
-
-        @Override
-        public ClassExpression[] visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            ClassExpression[] tailExpressions = node.getTailExpression().accept(this);
-            for (int i = 0; i < tailExpressions.length; ++i) {
-                tailExpressions[i] = new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(),
-                        tailExpressions[i]);
-            }
-            return tailExpressions;
-        }
-
-    }
-
-    /**
-     * This visitor deletes the sub tree of a class expression that contains the
-     * {@link Suggestor#CONTEXT_POSITION_MARKER}. The sub expression is deleted up
-     * to the first disjunction. If the expression does not contain any
-     * disjunctions, {@code null} is returned.
-     * 
-     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
-     *
-     */
-    public static class SubExpressionDeleter implements ClassExpressionVisitingCreator<ClassExpression> {
-
-        @Override
-        public ClassExpression visitNamedClass(NamedClass node) {
-            if (Suggestor.CONTEXT_POSITION_MARKER.equals(node)) {
-                return null;
-            } else {
-                return node;
-            }
-        }
-
-        @Override
-        public ClassExpression visitJunction(Junction node) {
-            ClassExpression[] newChildren = node.getChildren().stream().map(child -> child.accept(this))
-                    .filter(child -> child != null).toArray(ClassExpression[]::new);
-            if ((newChildren.length != node.getChildren().size()) && (node.isConjunction())) {
-                return null;
-            } else {
-                return new Junction(node.isConjunction(), newChildren);
-            }
-        }
-
-        @Override
-        public ClassExpression visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            ClassExpression newChild = node.getTailExpression().accept(this);
-            if (newChild == null) {
-                return null;
-            } else {
-                return new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(), newChild);
-            }
-        }
-
     }
 
 }

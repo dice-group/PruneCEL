@@ -28,7 +28,7 @@ import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SelectionScores;
-import org.dice_research.cel.refine.suggest.SparqlBasedSuggestor;
+import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
 import org.dice_research.cel.score.*;
 import org.dice_research.cel.sparql.InstanceRetriever;
 import org.dice_research.topicmodeling.commons.collections.TopDoubleObjectCollection;
@@ -222,6 +222,7 @@ public class PruneCEL {
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
         String endpoint = "http://localhost:3030/family/sparql";
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
@@ -250,7 +251,7 @@ public class PruneCEL {
             // XXX Max iterations of the refinement
             //cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
-            cel.setMaxTime(60000);
+            cel.setMaxTime(600000);
             // XXX (Optional) try to avoid refining expressions that have not been created
             // in a promising way (i.e., just added a class to an existing expression
             // without changing the accuracy of the expression)
@@ -270,6 +271,7 @@ public class PruneCEL {
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
             Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+//            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 

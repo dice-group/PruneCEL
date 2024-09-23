@@ -11,14 +11,13 @@ public class SuggestionData {
     public ClassExpression suggestionPart;
     public ClassExpression basePart;
     public String suggestionQuery;
-    public String baseQuery;
     public int posCount;
     public int negCount;
     public int maxPos;
     public int maxNeg;
 
     public void addBaseScore(List<ScoredIRI> scoredIris) {
-        if (baseQuery != null) {
+        if (basePart != null) {
             scoredIris.forEach(s -> s.add(posCount, negCount));
         }
     }

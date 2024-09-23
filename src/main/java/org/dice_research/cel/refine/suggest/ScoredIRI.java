@@ -1,5 +1,7 @@
 package org.dice_research.cel.refine.suggest;
 
+import java.util.Objects;
+
 /**
  * This data class is an extension of the {@link SelectionScores} class and
  * stores an IRI together with its selection scores. It also stores whether the
@@ -13,12 +15,12 @@ public class ScoredIRI extends SelectionScores {
     /**
      * The IRI that has been scored.
      */
-    protected String iri;
+    public String iri;
     /**
      * A flag that indicates whether the {@link #iri} has to be used as an inverted
      * role to achieve the score.
      */
-    protected boolean inverted;
+    public boolean inverted;
 
     /**
      * Constructor.
@@ -88,4 +90,26 @@ public class ScoredIRI extends SelectionScores {
         builder.append("]");
         return builder.toString();
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + Objects.hash(inverted, iri);
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ScoredIRI other = (ScoredIRI) obj;
+        return inverted == other.inverted && Objects.equals(iri, other.iri);
+    }
+
+
 }

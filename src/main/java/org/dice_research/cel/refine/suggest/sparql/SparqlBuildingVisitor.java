@@ -1,6 +1,8 @@
 package org.dice_research.cel.refine.suggest.sparql;
 
 import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.function.Function;
 
@@ -30,11 +32,16 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
     protected Deque<String> variables = new ArrayDeque<String>();
     protected String valuesString;
     protected String filterString;
+    protected String generalTypeString;
     protected String intermediateVariableName = INTERMEDIATE_VARIABLE_NAME;
     protected int nextVariableId = 0;
     protected boolean isRoot = true;
+    protected boolean isInsideFilter = false;
+    protected boolean markerInsideFilter = false;
     protected Function<String, String> variableToStmtOnMarkedPosition;
     protected NegatingVisitor negator = new NegatingVisitor();
+    protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
+    protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
 
     /**
      * Constructor.
@@ -49,6 +56,9 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
      * @param filterString                   an additional filter that should be
      *                                       added to the selected variable (can be
      *                                       null)
+     * @param generalTypeString              a string with a type statement (should
+     *                                       state that the search IRI is an
+     *                                       owl:Class or an rdf:Property.
      * @param variableToStmtOnMarkedPosition the function that transforms the given
      *                                       variable name into the select statement
      *                                       that is expected at the marked position
@@ -56,11 +66,12 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
      *                                       visitor is applied
      */
     public SparqlBuildingVisitor(StringBuilder queryBuilder, String firstVariable, String valuesString,
-            String filterString, Function<String, String> variableToStmtOnMarkedPosition) {
+            String filterString, String generalTypeString, Function<String, String> variableToStmtOnMarkedPosition) {
         super();
         this.queryBuilder = queryBuilder;
         this.valuesString = valuesString;
         this.filterString = filterString;
+        this.generalTypeString = generalTypeString;
         this.variableToStmtOnMarkedPosition = variableToStmtOnMarkedPosition;
         variables.addFirst(firstVariable);
     }
@@ -78,9 +89,16 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
             }
         }
         // Check if this is the marked position
-        if (Suggestor.CONTEXT_POSITION_MARKER.equals(node)) {
+        if (Suggestor.CONTEXT_POSITION_MARKER.getName().equals(node.getName())) {
+            markerInsideFilter = markerInsideFilter || isInsideFilter;
             queryBuilder.append("        ");
-            queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
+            if (node.isNegated()) {
+                queryBuilder.append("FILTER NOT EXISTS { ");
+                queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
+                queryBuilder.append(" }");
+            } else {
+                queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
+            }
             queryBuilder.append('\n');
             if (filterString != null) {
                 queryBuilder.append("        ");
@@ -176,14 +194,32 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
         } else {
             // Ensure that for all possible instantiations of the tail node, they do not
             // fulfill the negation of the tail node expression.
-            queryBuilder.append("        FILTER NOT EXISTS {\n");
             ClassExpression negation = negator.negateExpression(node);
+            Collection<ClassExpression> nodesToVisit;
+            if (checker.containsDisjunction(negation)) {
+                negation = preprocessor.preprocess(negation);
+                nodesToVisit = ((Junction) negation).getChildren();
+            } else {
+                nodesToVisit = Collections.singletonList(negation);
+            }
+            boolean oldInsideFilter = isInsideFilter;
+            isInsideFilter = true;
             boolean oldRoot = isRoot;
             isRoot = false;
-            negation.accept(this);
+            for (ClassExpression child : nodesToVisit) {
+                queryBuilder.append("        FILTER NOT EXISTS {\n");
+                child.accept(this);
+                queryBuilder.append("        }\n");
+            }
             isRoot = oldRoot;
-            // Close the bracket of the FILTER statement
-            queryBuilder.append("        }\n");
+            // If there was the marker inside this filter
+            if ((!oldInsideFilter) && markerInsideFilter) {
+                // We have to add the general type of the element that we are looking for.
+                queryBuilder.append("        ");
+                queryBuilder.append(generalTypeString);
+                queryBuilder.append("\n");
+            }
+            isInsideFilter = oldInsideFilter;
         }
     }
 

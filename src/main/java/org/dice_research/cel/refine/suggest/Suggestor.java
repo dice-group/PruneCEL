@@ -28,6 +28,12 @@ public interface Suggestor {
     public static final NamedClass CONTEXT_POSITION_MARKER = new NamedClass("⌖");
 
     /**
+     * The position marker within a class expression.
+     */
+    public static final NamedClass NEGATED_CONTEXT_POSITION_MARKER = new NamedClass(CONTEXT_POSITION_MARKER.getName(),
+            true);
+
+    /**
      * Method that suggests named classes that can be used at the marked position.
      * 
      * @param positive positive examples

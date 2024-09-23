@@ -17,7 +17,7 @@ import org.dice_research.cel.io.LearningProblem;
 import org.dice_research.cel.io.csv.CSVIntermediateResultPrinter;
 import org.dice_research.cel.io.json.JSONLearningProblemReader;
 import org.dice_research.cel.refine.suggest.SelectionScores;
-import org.dice_research.cel.refine.suggest.SparqlBasedSuggestor;
+import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
 import org.dice_research.cel.score.AccuracyCalculator;
 import org.dice_research.cel.score.AvoidingPickySolutionsDecorator;
 import org.dice_research.cel.score.BalancedAccuracyCalculator;

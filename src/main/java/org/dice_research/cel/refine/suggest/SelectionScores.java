@@ -13,11 +13,11 @@ public class SelectionScores {
     /**
      * The number of positive examples that have been selected.
      */
-    protected int posCount;
+    public int posCount;
     /**
      * The number of negative examples that have been selected.
      */
-    protected int negCount;
+    public int negCount;
 
     /**
      * Constructor.
@@ -68,5 +68,30 @@ public class SelectionScores {
     public void add(int posCount, int negCount) {
         this.posCount += posCount;
         this.negCount += negCount;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + negCount;
+        result = prime * result + posCount;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        SelectionScores other = (SelectionScores) obj;
+        if (negCount != other.negCount)
+            return false;
+        if (posCount != other.posCount)
+            return false;
+        return true;
     }
 }

@@ -12,7 +12,7 @@ import org.apache.jena.vocabulary.OWL2;
 import org.apache.jena.vocabulary.RDF;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.ScoredClassExpression;
-import org.dice_research.cel.refine.suggest.SparqlBasedSuggestor;
+import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
 import org.dice_research.cel.score.AccuracyCalculator;
 import org.dice_research.cel.score.ScoreCalculatorFactory;
 import org.junit.Assert;
