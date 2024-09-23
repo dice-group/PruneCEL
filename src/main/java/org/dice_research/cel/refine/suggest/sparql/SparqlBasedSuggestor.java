@@ -156,7 +156,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
                     ((Junction) sugChild).getChildren().add(baseNegation);
                 } else {
                     // We create a new conjunction
-                    sugExp.set(i, new Junction(true, sugChild));
+                    sugExp.set(i, new Junction(true, sugChild, baseNegation));
                 }
             }
         }
