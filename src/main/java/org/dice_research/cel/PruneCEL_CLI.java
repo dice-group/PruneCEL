@@ -120,8 +120,10 @@ public class PruneCEL_CLI {
         if (AvoidPickySolutionsDecorator) {
             factory = new AvoidingPickySolutionsDecorator.Factory(factory);
         }
+        
+        boolean useCache = true;
 
-        try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic)) {
+        try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
             suggestor.addToPropertyBlackList(RDF.type.getURI());
 

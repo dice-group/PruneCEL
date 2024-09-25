@@ -94,4 +94,15 @@ public class SelectionScores {
             return false;
         return true;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("SelectionScores [posCount=");
+        builder.append(posCount);
+        builder.append(", negCount=");
+        builder.append(negCount);
+        builder.append("]");
+        return builder.toString();
+    }
 }

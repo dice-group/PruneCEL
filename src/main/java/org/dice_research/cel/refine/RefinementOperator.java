@@ -2,6 +2,7 @@ package org.dice_research.cel.refine;
 
 import java.util.Set;
 
+import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.ScoredClassExpression;
 
 /**
@@ -20,5 +21,5 @@ public interface RefinementOperator {
      * @return a set of new class expressions that are refinements of the given
      *         expression.
      */
-    Set<ScoredClassExpression> refine(ScoredClassExpression nextBestExpression);
+    Set<ScoredClassExpression> refine(ClassExpression nextBestExpression);
 }

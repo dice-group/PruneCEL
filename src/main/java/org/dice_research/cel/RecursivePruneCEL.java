@@ -130,7 +130,7 @@ public class RecursivePruneCEL extends PruneCEL {
                     LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                             nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
                     // Refine this expression
-                    newExpressions = rho.refine(nextBestExpression);
+                    newExpressions = rho.refine(nextBestExpression.getClassExpression());
                     if (cancelled) {
                         return null;
                     }

@@ -64,6 +64,8 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
      */
     protected OutputStream logStream;
 
+    protected boolean debugMode = false;
+
     /**
      * Constructor.
      * 
@@ -85,12 +87,22 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
     }
 
     @Override
-    public Set<ScoredClassExpression> refine(ScoredClassExpression nextBestExpression) {
+    public Set<ScoredClassExpression> refine(ClassExpression nextBestExpression) {
         RecursivlyRefiningVisitor visitor = new RecursivlyRefiningVisitor(this, positive.size(), negative.size(),
                 logic);
-        nextBestExpression.getClassExpression().accept(visitor);
+        nextBestExpression.accept(visitor);
         Set<ScoredClassExpression> results = visitor.getResults();
-        logRefinementResults(nextBestExpression.getClassExpression(), results);
+        logRefinementResults(nextBestExpression, results);
+        if (debugMode) {
+            for (ScoredClassExpression result : results) {
+                SelectionScores scores = suggestor.scoreExpression(result.getClassExpression(), positive, negative);
+                if ((result.getPosCount() != scores.posCount) || (result.getNegCount() != scores.negCount)) {
+                    LOGGER.error(
+                            "Error while checking results! The expression's counts {} differ from the counts when checking it again {}.",
+                            result, scores);
+                }
+            }
+        }
         return results;
     }
 
@@ -129,6 +141,10 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
      */
     public void setLogStream(OutputStream logStream) {
         this.logStream = logStream;
+    }
+
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
     }
 
     /**

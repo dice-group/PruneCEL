@@ -60,6 +60,7 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
         RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator, positive,
                 negative);
         ((SuggestorBasedRefinementOperator) rho).setLogStream(logStream);
+        ((SuggestorBasedRefinementOperator) rho).setDebugMode(debugMode);
 
         Set<String> subProblemKeys = new HashSet<>();
         Collection<ScoredClassExpression> newExpressions;
@@ -85,7 +86,7 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
             // Refine this expression
-            newExpressions = rho.refine(nextBestExpression);
+            newExpressions = rho.refine(nextBestExpression.getClassExpression());
             // Check the expressions
             for (ScoredClassExpression newExpression : newExpressions) {
                 // If 1) we haven't seen this before AND 2a) we are configured to not further

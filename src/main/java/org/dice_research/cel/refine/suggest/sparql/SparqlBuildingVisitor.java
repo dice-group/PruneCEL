@@ -96,6 +96,9 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
                 queryBuilder.append("FILTER NOT EXISTS { ");
                 queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
                 queryBuilder.append(" }");
+                // We have to add the general type of the element that we are looking for.
+                queryBuilder.append("\n        ");
+                queryBuilder.append(generalTypeString);
             } else {
                 queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
             }
@@ -143,12 +146,18 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
             }
             boolean oldRoot = isRoot;
             isRoot = false;
+            boolean newMarkerInsideFilter = false;
             for (ClassExpression child : node.getChildren()) {
                 child.accept(this);
+                // Reset the flag that the marker might be within a filter before moving on.
+                newMarkerInsideFilter = newMarkerInsideFilter || markerInsideFilter;
+                markerInsideFilter = false;
             }
             isRoot = oldRoot;
+            markerInsideFilter = newMarkerInsideFilter;
         } else {
             // This is a disjunction, so we have to create UNION statements
+            boolean newMarkerInsideFilter = false;
             boolean first = true;
             queryBuilder.append("        {\n");
             for (ClassExpression child : node.getChildren()) {
@@ -161,7 +170,11 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
                 // root node, the children of the disjunction need to know the VALUES
                 // restriction.
                 child.accept(this);
+                // Reset the flag that the marker might be within a filter before moving on.
+                newMarkerInsideFilter = newMarkerInsideFilter || markerInsideFilter;
+                markerInsideFilter = false;
             }
+            markerInsideFilter = newMarkerInsideFilter;
             queryBuilder.append("        }\n");
         }
     }

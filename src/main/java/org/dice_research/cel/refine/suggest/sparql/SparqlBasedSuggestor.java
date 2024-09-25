@@ -552,11 +552,15 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         expressions.add(expression);
     }
 
-    public static SparqlBasedSuggestor create(String endpoint, DescriptionLogic logic) {
+    public static SparqlBasedSuggestor create(String endpoint, DescriptionLogic logic, boolean useCache) {
         HttpClient client = HttpClient.newHttpClient();
         QueryExecutionFactory queryExecFactory = new QueryExecutionFactoryHttp(endpoint, new DatasetDescription(),
                 client);
-        return new SparqlBasedSuggestor(queryExecFactory, logic);
+        if (useCache) {
+            return new CachingSparqlBasedSuggestor(queryExecFactory, logic);
+        } else {
+            return new SparqlBasedSuggestor(queryExecFactory, logic);
+        }
     }
 
 }
