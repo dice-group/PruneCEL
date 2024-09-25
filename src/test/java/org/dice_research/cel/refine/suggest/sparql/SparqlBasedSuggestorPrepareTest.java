@@ -56,6 +56,16 @@ public class SparqlBasedSuggestorPrepareTest {
                 new SimpleQuantifiedRole(false, "r2", false, NamedClass.BOTTOM)));
         testCases.add(new Object[] { input, null, input });
 
+        // ∀role1.(⌖⊔∀role2.⊥)
+        input = new SimpleQuantifiedRole(false, "r1", false, new Junction(false, Suggestor.CONTEXT_POSITION_MARKER,
+                new SimpleQuantifiedRole(false, "r2", false, NamedClass.BOTTOM)));
+        expectedSugPart = new Junction(true,
+                new SimpleQuantifiedRole(false, "r1", false, Suggestor.CONTEXT_POSITION_MARKER),
+                new SimpleQuantifiedRole(true, "r1", false,
+                        new SimpleQuantifiedRole(true, "r2", false, NamedClass.TOP)));
+        testCases.add(new Object[] { input, new SimpleQuantifiedRole(false, "r1", false,
+                new SimpleQuantifiedRole(false, "r2", false, NamedClass.BOTTOM)), expectedSugPart });
+
         // S⊔(∃m.(⌖⊓B)⊓(¬G⊔P)⊓¬M⊓¬D)
         input = new Junction(false, new NamedClass("S"),
                 new Junction(true,

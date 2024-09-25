@@ -74,10 +74,12 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
         model.add(x1, RDF.type, classA);
         model.add(x2, RDF.type, classA);
         model.add(x3, RDF.type, classB);
+        model.add(x3, role1, x4);
         model.add(x4, role2, x1);
         testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
-                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 1, 1), new ScoredIRI(classB.getURI(), 0, 1) } });
+                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 1, 1), new ScoredIRI(classB.getURI(), 0, 1) },
+                new ScoredIRI[] { new ScoredIRI(role1.getURI(), 0, 1) } });
 
         // ∀role1.(⌖⊓∀role2.⊥)
         input = new SimpleQuantifiedRole(false, role1.getURI(), false,
@@ -92,10 +94,35 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
         model.add(x1, RDF.type, classA);
         model.add(x2, RDF.type, classA);
         model.add(x3, RDF.type, classB);
+        model.add(x3, role1, x4);
         model.add(x4, role2, x1);
         testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
-                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 2, 1), new ScoredIRI(classB.getURI(), 1, 1), new ScoredIRI(classC.getURI(), 1, 0) } });
+                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 2, 1), new ScoredIRI(classB.getURI(), 1, 1),
+                        new ScoredIRI(classC.getURI(), 1, 0) },
+                new ScoredIRI[] { new ScoredIRI(role1.getURI(), 1, 1), new ScoredIRI(role2.getURI(), 1, 0) } });
+
+        // ∀role1.(⌖⊔∀role2.⊥)
+        input = new SimpleQuantifiedRole(false, role1.getURI(), false,
+                new Junction(false, Suggestor.CONTEXT_POSITION_MARKER,
+                        new SimpleQuantifiedRole(false, role2.getURI(), false, NamedClass.BOTTOM)));
+        model = TestHelper.initModel(classes, roles, individuals);
+        model.add(pos1, role1, x1);
+        model.add(pos2, RDF.type, classC);
+        model.add(neg1, role1, x2);
+        model.add(neg2, role1, x3);
+        model.add(neg3, role1, x4);
+        model.add(x1, RDF.type, classA);
+        model.add(x2, RDF.type, classA);
+        model.add(x3, RDF.type, classB);
+        model.add(x3, role1, x4);
+        model.add(x4, role2, x1);
+        model.add(x4, role1, x3);
+        model.add(x4, RDF.type, classC);
+        testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
+                new ScoredIRI[] { new ScoredIRI(classC.getURI(), 2, 3) },
+                new ScoredIRI[] { new ScoredIRI(role1.getURI(), 2, 3), new ScoredIRI(role2.getURI(), 2, 3) } });
 
         return testCases;
     }
@@ -105,18 +132,21 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
     protected Collection<String> positives;
     protected Collection<String> negatives;
     protected ClassExpression input;
-    protected ScoredIRI[] expected;
+    protected ScoredIRI[] expectedClasses;
+    protected ScoredIRI[] expectedProperties;
 
     public SparqlBasedSuggestorTest(ClassExpression input, String logic, Model model, String[] positives,
-            String[] negatives, ScoredIRI[] expected) {
+            String[] negatives, ScoredIRI[] expectedClasses, ScoredIRI[] expectedProperties) {
         super();
         this.input = input;
         this.logic = logic;
         this.model = model;
         this.positives = Arrays.asList(positives);
         this.negatives = Arrays.asList(negatives);
-        this.expected = expected;
-        Arrays.sort(this.expected, this);
+        this.expectedClasses = expectedClasses;
+        Arrays.sort(this.expectedClasses, this);
+        this.expectedProperties = expectedProperties;
+        Arrays.sort(this.expectedProperties, this);
     }
 
     @Test
@@ -128,11 +158,18 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
                 SparqlBasedSuggestor suggestor = new SparqlBasedSuggestor(qef, dl)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
             suggestor.addToPropertyBlackList(RDF.type.getURI());
+            Collection<ScoredIRI> suggestions;
+            ScoredIRI[] result;
 
-            Collection<ScoredIRI> suggestions = suggestor.suggestClass(positives, negatives, input);
-            ScoredIRI[] result = suggestions.toArray(ScoredIRI[]::new);
+            suggestions = suggestor.suggestClass(positives, negatives, input);
+            result = suggestions.toArray(ScoredIRI[]::new);
             Arrays.sort(result, this);
-            Assert.assertArrayEquals(expected, result);
+            Assert.assertArrayEquals(expectedClasses, result);
+
+            suggestions = suggestor.suggestProperty(positives, negatives, input);
+            result = suggestions.toArray(ScoredIRI[]::new);
+            Arrays.sort(result, this);
+            Assert.assertArrayEquals(expectedProperties, result);
         }
     }
 
