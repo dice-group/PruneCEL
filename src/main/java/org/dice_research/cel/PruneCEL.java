@@ -82,7 +82,7 @@ public class PruneCEL {
         if (iResultPrinter != null) {
             iResultPrinter.setStartTime(startTime);
         }
-        long timeToStop = startTime + maxTime;
+        long timeToStop =  maxTime > 0 ? startTime + maxTime : 0;
         return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
 
@@ -126,7 +126,7 @@ public class PruneCEL {
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
             // Refine this expression
-            newExpressions = rho.refine(nextBestExpression.getClassExpression(), timeToStop);
+            newExpressions = rho.refine(nextBestExpression.getClassExpression(), maxTime > 0 ? timeToStop : 0);
             // Check the expressions
             for (ScoredClassExpression newExpression : newExpressions) {
                 // If 1) we haven't seen this before AND 2a) we are configured to not further
