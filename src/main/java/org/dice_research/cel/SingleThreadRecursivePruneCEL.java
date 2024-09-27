@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 @Deprecated
 public class SingleThreadRecursivePruneCEL extends PruneCEL {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RecursivePruneCEL.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MultithreadRecursivePruneCEL.class);
 
     protected static final int EXCLUSIVE_ITERATIONS_FOR_NEW_QUEUE = 25;
 

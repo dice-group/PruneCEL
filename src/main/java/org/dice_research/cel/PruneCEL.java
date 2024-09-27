@@ -28,8 +28,12 @@ import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SelectionScores;
-import org.dice_research.cel.refine.suggest.SparqlBasedSuggestor;
-import org.dice_research.cel.score.*;
+import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
+import org.dice_research.cel.score.AvoidingPickySolutionsDecorator;
+import org.dice_research.cel.score.BalancedAccuracyCalculator;
+import org.dice_research.cel.score.LengthBasedRefinementScorer;
+import org.dice_research.cel.score.ScoreCalculator;
+import org.dice_research.cel.score.ScoreCalculatorFactory;
 import org.dice_research.cel.sparql.InstanceRetriever;
 import org.dice_research.topicmodeling.commons.collections.TopDoubleObjectCollection;
 import org.dice_research.topicmodeling.commons.collections.TopIntObjectCollection;
@@ -51,6 +55,7 @@ public class PruneCEL {
     protected InstanceRetriever retriever = null;
     protected double precisionThreshold = 1.0;
     protected double timeForRecursiveIteration = 0.5;
+    protected boolean debugMode = false;
 
     public PruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic, ScoreCalculatorFactory calculatorFactory) {
         super();
@@ -74,7 +79,10 @@ public class PruneCEL {
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
             OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         long startTime = System.currentTimeMillis();
-        long timeToStop = startTime + maxTime;
+        if (iResultPrinter != null) {
+            iResultPrinter.setStartTime(startTime);
+        }
+        long timeToStop =  maxTime > 0 ? startTime + maxTime : 0;
         return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
 
@@ -92,6 +100,7 @@ public class PruneCEL {
         RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator, positive,
                 negative);
         ((SuggestorBasedRefinementOperator) rho).setLogStream(logStream);
+        ((SuggestorBasedRefinementOperator) rho).setDebugMode(debugMode);
 
         Collection<ScoredClassExpression> newExpressions;
         ScoredClassExpression nextBestExpression;
@@ -117,7 +126,7 @@ public class PruneCEL {
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
             // Refine this expression
-            newExpressions = rho.refine(nextBestExpression);
+            newExpressions = rho.refine(nextBestExpression.getClassExpression(), maxTime > 0 ? timeToStop : 0);
             // Check the expressions
             for (ScoredClassExpression newExpression : newExpressions) {
                 // If 1) we haven't seen this before AND 2a) we are configured to not further
@@ -217,11 +226,16 @@ public class PruneCEL {
         }
     }
 
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
+
     public static void main(String[] args) throws Exception {
         // XXX Set SPARQL endpoint
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
-        String endpoint = "http://localhost:3030/family/sparql";
+//        String endpoint = "http://localhost:3030/family/sparql";
+        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
@@ -235,7 +249,10 @@ public class PruneCEL {
         // XXX (Optional) avoid choosing solutions that work only for a single example
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
-        try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic)) {
+        boolean useCache = true;
+        boolean debugMode = false;
+
+        try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
             suggestor.addToPropertyBlackList(RDF.type.getURI());
 
@@ -248,7 +265,7 @@ public class PruneCEL {
             // suggestor);
             PruneCEL cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
-            //cel.setMaxIterations(1000);
+            // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
             cel.setMaxTime(60000);
             // XXX (Optional) try to avoid refining expressions that have not been created
@@ -257,21 +274,55 @@ public class PruneCEL {
             cel.setSkipNonImprovingStmts(true);
             // XXX Keep this commented for now
             // cel.activateRecursiveIteration(suggestor, 1.0, 0.5);
-
-            // DEBUG CODE!!!
-//            ClassExpression ce = new Junction(false,
-//                    new SimpleQuantifiedRole(false, "http://quans-namespace.org/#HasLiteralAns", false,
-//                NamedClass.BOTTOM),
-//                            new Junction(true, Suggestor.CONTEXT_POSITION_MARKER,
-//                                    new NamedClass("http://quans-namespace.org/#QUESTION")));
-//            suggestor.suggestClass(positives.get(0), negatives.get(0), ce);
-            // DEBUG CODE END!!!
+            cel.setDebugMode(debugMode);
 
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
-            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+//            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
+
+            // DEBUG CODE!!!
+//            ClassExpression ce;
+//            ClassExpression ce = new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot", false,
+//                    new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new SimpleQuantifiedRole(false, "https://nlp.stanford.edu/nlp#obj", false,
+//                                    NamedClass.BOTTOM)));
+//            ce = new Junction(true,
+////                    new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasLiteralAnswer", false,
+////                    NamedClass.BOTTOM),
+//                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuestionWord", false,
+//                            NamedClass.TOP),
+//                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuery", false,
+//                            new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasEntity", false,
+//                                    new Junction(false, new NamedClass("http://dbpedia.org/ontology/Company"),
+//                                            new NamedClass("http://dbpedia.org/ontology/Location"),
+//                                            new NamedClass("http://dbpedia.org/ontology/MusicGenre"),
+//                                            new NamedClass("http://dbpedia.org/ontology/Currency"),
+//                                            new Junction(true, new SimpleQuantifiedRole(true,
+//                                                    "http://xmlns.com/foaf/0.1/name", false,
+//                                                    NamedClass.TOP),
+//                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
+//                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
+//                ⊓
+//                ∃.∃.(
+//                    http://dbpedia.org/ontology/Company
+//                    ⊔
+//                    http://dbpedia.org/ontology/Location
+//                    ⊔
+//                    http://dbpedia.org/ontology/MusicGenre
+//                    ⊔
+//                    (∃http://xmlns.com/foaf/0.1/name.⊤⊓http://www.w3.org/2004/02/skos/core#Concept⊓http://dbpedia.org/ontology/Agent)
+//                    ⊔
+//                    http://dbpedia.org/ontology/Currency
+//                    )
+//            LearningProblem prob = problems.iterator().next();
+//            System.out.println(suggestor.suggestProperty(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
+//            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
+//            System.out.println(ce);
+//            ce = (new NegatingVisitor()).negateExpression(ce);
+//            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
+            // DEBUG CODE END!!!
 
             try (PrintStream pout = new PrintStream("results.txt")) {
 //                for (int i = 0; i < names.size(); ++i) {

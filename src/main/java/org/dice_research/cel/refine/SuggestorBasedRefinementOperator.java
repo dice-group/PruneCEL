@@ -64,6 +64,8 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
      */
     protected OutputStream logStream;
 
+    protected boolean debugMode = false;
+
     /**
      * Constructor.
      * 
@@ -85,12 +87,22 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
     }
 
     @Override
-    public Set<ScoredClassExpression> refine(ScoredClassExpression nextBestExpression) {
+    public Set<ScoredClassExpression> refine(ClassExpression nextBestExpression, long timeToStop) {
         RecursivlyRefiningVisitor visitor = new RecursivlyRefiningVisitor(this, positive.size(), negative.size(),
-                logic);
-        nextBestExpression.getClassExpression().accept(visitor);
+                logic, timeToStop);
+        nextBestExpression.accept(visitor);
         Set<ScoredClassExpression> results = visitor.getResults();
-        logRefinementResults(nextBestExpression.getClassExpression(), results);
+        logRefinementResults(nextBestExpression, results);
+        if (debugMode) {
+            for (ScoredClassExpression result : results) {
+                SelectionScores scores = suggestor.scoreExpression(result.getClassExpression(), positive, negative);
+                if ((result.getPosCount() != scores.posCount) || (result.getNegCount() != scores.negCount)) {
+                    LOGGER.error(
+                            "Error while checking results! The expression's counts {} differ from the counts when checking it again {}.",
+                            result, scores);
+                }
+            }
+        }
         return results;
     }
 
@@ -131,6 +143,10 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         this.logStream = logStream;
     }
 
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
+
     /**
      * An implementation of the visitor pattern, that creates a copy of a given
      * class expression while at the same time searching and replacing a given sub
@@ -159,14 +175,16 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         protected int numberOfNegatives;
         protected ClassExpression parentNode = null;
         protected DescriptionLogic logic;
+        protected long timeToStop;
 
         public RecursivlyRefiningVisitor(SuggestorBasedRefinementOperator parentOperator, int numberOfPositives,
-                int numberOfNegatives, DescriptionLogic logic) {
+                int numberOfNegatives, DescriptionLogic logic, long timeToStop) {
             super();
             this.parentOperator = parentOperator;
             this.numberOfPositives = numberOfPositives;
             this.numberOfNegatives = numberOfNegatives;
             this.logic = logic;
+            this.timeToStop = timeToStop;
         }
 
         protected void addResult(ScoredIRI suggestion, ClassExpression newNode, boolean addedEdge) {
@@ -217,25 +235,17 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
             for (ScoredIRI suggestion : suggestions) {
                 if (!blacklist.contains(suggestion.getIri())) {
                     // Add the suggestion
-//                    newExpression = ClassExpressionUpdater.update(context, Suggestor.CONTEXT_POSITION_MARKER,
-//                            new SimpleQuantifiedRole(true, suggestion.getIri(), suggestion.isInverted(),
-//                                    NamedClass.TOP),
-//                            true);
                     addResult(suggestion, new SimpleQuantifiedRole(true, suggestion.getIri(), suggestion.isInverted(),
                             NamedClass.TOP), true);
-//                    results.add(parentOperator.scoreCalculator.score(newExpression, suggestion.getPosCount(),
-//                            suggestion.getNegCount()));
-//                    if (logic.supportsComplexConceptNegation()) {
-//                        // Add its negation
-//                        results.add(parentOperator.scoreCalculator.score(negator.negateExpression(newExpression),
-//                                numberOfPositives - suggestion.getPosCount(),
-//                                numberOfNegatives - suggestion.getNegCount()));
-//                    }
                 }
             }
         }
 
         public void visitAnyNode(ClassExpression node, Set<String> classBlacklist, Set<String> roleBlacklist) {
+            if ((timeToStop > 0) && (System.currentTimeMillis() >= timeToStop)) {
+                // We have to stop ...
+                return;
+            }
             if (logic.supportsConceptIntersection() || logic.supportsConceptUnion()) {
                 // Can we extend the node with a conjunction?
                 boolean conjunction = logic.supportsConceptIntersection();
@@ -278,6 +288,10 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         @SuppressWarnings("unchecked")
         @Override
         public void visitNamedClass(NamedClass node) {
+            if ((timeToStop > 0) && (System.currentTimeMillis() >= timeToStop)) {
+                // We have to stop ...
+                return;
+            }
             // Check if this is TOP
             if (NamedClass.TOP.equals(node)) {
                 // replace TOP with classes
@@ -294,6 +308,10 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
 
         @Override
         public void visitJunction(Junction node) {
+            if ((timeToStop > 0) && (System.currentTimeMillis() >= timeToStop)) {
+                // We have to stop ...
+                return;
+            }
             ClassExpression oldContext = context;
             ClassExpression oldparentNode = parentNode;
             parentNode = node;
@@ -327,6 +345,10 @@ public class SuggestorBasedRefinementOperator implements RefinementOperator {
         @SuppressWarnings("unchecked")
         @Override
         public void visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
+            if ((timeToStop > 0) && (System.currentTimeMillis() >= timeToStop)) {
+                // We have to stop ...
+                return;
+            }
             ClassExpression newExpression = new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(),
                     Suggestor.CONTEXT_POSITION_MARKER);
             ClassExpression oldContext = context;

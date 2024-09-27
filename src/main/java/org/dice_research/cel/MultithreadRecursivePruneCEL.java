@@ -36,13 +36,13 @@ import org.dice_research.topicmodeling.commons.collections.TopIntObjectCollectio
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RecursivePruneCEL extends PruneCEL {
+public class MultithreadRecursivePruneCEL extends PruneCEL {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RecursivePruneCEL.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MultithreadRecursivePruneCEL.class);
 
     protected ExecutorService executor = Executors.newCachedThreadPool();
 
-    public RecursivePruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic,
+    public MultithreadRecursivePruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic,
             ScoreCalculatorFactory calculatorFactory, InstanceRetriever retriever) {
         super(suggestor, logic, calculatorFactory);
         this.retriever = retriever;
@@ -130,7 +130,7 @@ public class RecursivePruneCEL extends PruneCEL {
                     LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                             nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
                     // Refine this expression
-                    newExpressions = rho.refine(nextBestExpression);
+                    newExpressions = rho.refine(nextBestExpression.getClassExpression(), timeToStop);
                     if (cancelled) {
                         return null;
                     }

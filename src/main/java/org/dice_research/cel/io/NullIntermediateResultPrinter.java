@@ -9,4 +9,16 @@ public class NullIntermediateResultPrinter implements IntermediateResultPrinter 
     public void printIntermediateResults(TopDoubleObjectCollection<ScoredClassExpression> topExpressions) {
     }
 
+    @Override
+    public void setStartTime(long startTime) {
+    }
+
+    @Override
+    public void recursionStarts() {
+    }
+
+    @Override
+    public void recursionEnds() {
+    }
+
 }
