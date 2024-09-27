@@ -231,7 +231,7 @@ public class PruneCEL {
         // XXX Set SPARQL endpoint
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
-          String endpoint = "http://localhost:3030/family/sparql";
+        String endpoint = "http://localhost:3030/family/sparql";
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
@@ -275,17 +275,21 @@ public class PruneCEL {
 
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
-             Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
-//            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
+            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
             // DEBUG CODE!!!
+//            ClassExpression ce;
 //            ClassExpression ce = new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot", false,
 //                    new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new SimpleQuantifiedRole(false, "https://nlp.stanford.edu/nlp#obj", false,
 //                                    NamedClass.BOTTOM)));
 //            LearningProblem prob = problems.iterator().next();
-//            suggestor.suggestProperty(prob.getPositiveExamples(), prob.getNegativeExamples(), ce);
+//            System.out.println(suggestor.suggestProperty(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
+//            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
+//            ce = (new NegatingVisitor()).negateExpression(ce);
+//            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
             // DEBUG CODE END!!!
 
             try (PrintStream pout = new PrintStream("results.txt")) {

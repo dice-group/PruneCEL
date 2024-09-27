@@ -73,12 +73,18 @@ public class ExpressionPreProcessor implements ClassExpressionVisitingCreator<Cl
 
     @Override
     public ClassExpression[] visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-        ClassExpression[] tailExpressions = node.getTailExpression().accept(this);
-        for (int i = 0; i < tailExpressions.length; ++i) {
-            tailExpressions[i] = new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(),
-                    tailExpressions[i]);
+        if (node.isExists()) {
+            ClassExpression[] tailExpressions = node.getTailExpression().accept(this);
+            for (int i = 0; i < tailExpressions.length; ++i) {
+                tailExpressions[i] = new SimpleQuantifiedRole(node.isExists(), node.getRole(), node.isInverted(),
+                        tailExpressions[i]);
+            }
+            return tailExpressions;
+        } else {
+            // This is a forAll expression. We cannot improve it at the moment. Hence, just
+            // return it as it is.
+            return new ClassExpression[] { node };
         }
-        return tailExpressions;
     }
 
 }

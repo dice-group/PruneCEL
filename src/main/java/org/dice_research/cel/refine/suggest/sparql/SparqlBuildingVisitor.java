@@ -82,12 +82,7 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
 
     @Override
     public void visitNamedClass(NamedClass node) {
-        // If this is the root node, we can simply add the values
-        if (isRoot) {
-            if (valuesString != null) {
-                queryBuilder.append(valuesString);
-            }
-        }
+        visitAnyNode();
         // Check if this is the marked position
         if (Suggestor.CONTEXT_POSITION_MARKER.getName().equals(node.getName())) {
             markerInsideFilter = markerInsideFilter || isInsideFilter;
@@ -103,11 +98,6 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
                 queryBuilder.append(variableToStmtOnMarkedPosition.apply(variables.peek()));
             }
             queryBuilder.append('\n');
-            if (filterString != null) {
-                queryBuilder.append("        ");
-                queryBuilder.append(filterString);
-                queryBuilder.append('\n');
-            }
         } else if (NamedClass.TOP.equals(node)) {
             // Nothing to do
         } else if (NamedClass.BOTTOM.equals(node)) {
@@ -138,12 +128,7 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
         // If this is a conjunction, we can simply visit all children and let them add
         // their triple patterns
         if (node.isConjunction()) {
-            // If this is the root node, we can simply add the values
-            if (isRoot) {
-                if (valuesString != null) {
-                    queryBuilder.append(valuesString);
-                }
-            }
+            visitAnyNode();
             boolean oldRoot = isRoot;
             isRoot = false;
             boolean newMarkerInsideFilter = false;
@@ -181,12 +166,7 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
 
     @Override
     public void visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-        // If this is the root node, we can simply add the values
-        if (isRoot) {
-            if (valuesString != null) {
-                queryBuilder.append(valuesString);
-            }
-        }
+        visitAnyNode();
         if (node.isExists()) {
             String nextVariable = getNextVariable();
             // Ensure that there is a connection to at least one node that fulfills the tail
@@ -208,31 +188,61 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
             // Ensure that for all possible instantiations of the tail node, they do not
             // fulfill the negation of the tail node expression.
             ClassExpression negation = negator.negateExpression(node);
-            Collection<ClassExpression> nodesToVisit;
-            if (checker.containsDisjunction(negation)) {
-                negation = preprocessor.preprocess(negation);
-                nodesToVisit = ((Junction) negation).getChildren();
+            negation = preprocessor.preprocess(negation);
+            visitNotExistsFilter(negation);
+        }
+    }
+
+    public void visitNotExistsFilter(ClassExpression filterExpression) {
+        Collection<ClassExpression> expressions;
+        if ((filterExpression instanceof Junction) && (!((Junction) filterExpression).isConjunction())) {
+            expressions = ((Junction) filterExpression).getChildren();
+        } else {
+            expressions = Collections.singleton(filterExpression);
+        }
+        boolean oldInsideFilter = isInsideFilter;
+        isInsideFilter = true;
+        boolean oldRoot = isRoot;
+        isRoot = false;
+        for (ClassExpression expression : expressions) {
+            // If this is an expression would create a FILTER NON EXISTS statement
+            if (((expression instanceof NamedClass) && (((NamedClass) expression).isNegated()))
+                    || ((expression instanceof SimpleQuantifiedRole)
+                            && (!((SimpleQuantifiedRole) expression).isExists()))) {
+                // Simply negate the statement and add it
+                ClassExpression negated = negator.negateExpression(expression);
+                negated = preprocessor.preprocess(negated);
+                negated.accept(this);
             } else {
-                nodesToVisit = Collections.singletonList(negation);
-            }
-            boolean oldInsideFilter = isInsideFilter;
-            isInsideFilter = true;
-            boolean oldRoot = isRoot;
-            isRoot = false;
-            for (ClassExpression child : nodesToVisit) {
-                queryBuilder.append("        FILTER NOT EXISTS {\n");
-                child.accept(this);
+                queryBuilder.append("        FILTER NOT EXISTS {\n        ");
+                // TODO We may have to add a dummy triple
+                // filterBuilder.append(instanceVariable);
+                // filterBuilder.append(" a <http://www.w3.org/2002/07/owl#NamedIndividual> .
+                // \n");
+                expression.accept(this);
                 queryBuilder.append("        }\n");
             }
-            isRoot = oldRoot;
-            // If there was the marker inside this filter
-            if ((!oldInsideFilter) && markerInsideFilter) {
-                // We have to add the general type of the element that we are looking for.
+        }
+        isRoot = oldRoot;
+        // If there was the marker inside this filter
+        if ((!oldInsideFilter) && markerInsideFilter) {
+            // We have to add the general type of the element that we are looking for.
+            queryBuilder.append("        ");
+            queryBuilder.append(generalTypeString);
+            queryBuilder.append("\n");
+        }
+        isInsideFilter = oldInsideFilter;
+    }
+
+    protected void visitAnyNode() {
+        // If this is the root node, we can simply add the values
+        if (isRoot && valuesString != null) {
+            queryBuilder.append(valuesString);
+            if (filterString != null) {
                 queryBuilder.append("        ");
-                queryBuilder.append(generalTypeString);
-                queryBuilder.append("\n");
+                queryBuilder.append(filterString);
+                queryBuilder.append('\n');
             }
-            isInsideFilter = oldInsideFilter;
         }
     }
 

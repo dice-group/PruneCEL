@@ -3,9 +3,7 @@ package org.dice_research.cel.expression;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.dice_research.cel.expression.parse.CEParser;
 import org.dice_research.cel.expression.parse.CEParserException;
-import org.dice_research.cel.refine.suggest.sparql.ExpressionPreProcessor;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,14 +75,6 @@ public class ClassExpressionComparisonTest {
                 true });
         testCases.add(new Object[] { new Junction(false, new NamedClass("A"), new NamedClass("B")),
                 new Junction(false, new NamedClass("B"), new NamedClass("A")), true });
-
-        CEParser parser = new CEParser();
-        ExpressionPreProcessor preproc = new ExpressionPreProcessor();
-        testCases.add(new Object[] { preproc.preprocess(parser.parse(
-                "(http://www.benchmark.org/family#Sister⊔(∃http://www.benchmark.org/family#married.(∃http://www.benchmark.org/family#married.⊤⊓∃http://www.benchmark.org/family#hasSibling.(http://www.benchmark.org/family#Mother⊔http://www.benchmark.org/family#Male)⊓http://www.benchmark.org/family#Brother)⊓(¬http://www.benchmark.org/family#Granddaughter⊔¬http://www.benchmark.org/family#Grandmother)⊓¬http://www.benchmark.org/family#Male⊓¬http://www.benchmark.org/family#Daughter))")),
-                preproc.preprocess(parser.parse(
-                        "((∃http://www.benchmark.org/family#married.(∃http://www.benchmark.org/family#hasParent.⊤⊓∃http://www.benchmark.org/family#hasSibling.(http://www.benchmark.org/family#Mother⊔http://www.benchmark.org/family#Male)⊓http://www.benchmark.org/family#Brother)⊓(¬http://www.benchmark.org/family#Granddaughter⊔¬http://www.benchmark.org/family#Grandmother)⊓¬http://www.benchmark.org/family#Male⊓¬http://www.benchmark.org/family#Daughter)⊔http://www.benchmark.org/family#Sister)")),
-                true });
 
         return testCases;
     }

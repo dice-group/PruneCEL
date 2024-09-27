@@ -21,7 +21,6 @@ import org.apache.jena.vocabulary.RDF;
 import org.dice_research.cel.DescriptionLogic;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.Junction;
-import org.dice_research.cel.expression.NegatingVisitor;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.ScoredIRI;
 import org.dice_research.cel.refine.suggest.SelectionScores;
@@ -125,7 +124,10 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
 
     protected void splitExpression(ClassExpression normalForm, SuggestionData data) {
         if (!(normalForm instanceof Junction) || ((Junction) normalForm).isConjunction()) {
-            LOGGER.error("Something went wrong. Expected a disjunction at this point.");
+            // There is a conjunction but the preprocessor didn't move it up to the root.
+            // Hence, we should ignore it and the given normalForm is the suggestionPart.
+            data.suggestionPart = normalForm;
+            return;
         }
         // Split the expression into the two parts
         List<ClassExpression> baseExp = new ArrayList<ClassExpression>();
@@ -147,22 +149,26 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             } else {
                 data.basePart = baseExp.get(0);
             }
-            // Add the negation to the suggestion children
-            ClassExpression baseNegation = data.basePart.accept(new NegatingVisitor());
-            for (int i = 0; i < sugExp.size(); ++i) {
-                ClassExpression sugChild = sugExp.get(i);
-                if ((sugChild instanceof Junction) && ((Junction) sugChild).isConjunction()) {
-                    // We can add the negations directly to the existing conjunction
-                    ((Junction) sugChild).getChildren().add(baseNegation);
-                } else {
-                    // We create a new conjunction
-                    sugExp.set(i, new Junction(true, sugChild, baseNegation));
-                }
-            }
+//            We won't add the negation of the base part here. Instead, we add them as filters later on. That removes the need to negate them twice and also reduces the amount of potential errors.
+//            // Add the negation to the suggestion children
+//            ClassExpression baseNegation = data.basePart.accept(new NegatingVisitor());
+//            for (int i = 0; i < sugExp.size(); ++i) {
+//                ClassExpression sugChild = sugExp.get(i);
+//                if ((sugChild instanceof Junction) && ((Junction) sugChild).isConjunction()) {
+//                    // We can add the negations directly to the existing conjunction
+//                    ((Junction) sugChild).getChildren().add(baseNegation);
+//                } else {
+//                    // We create a new conjunction
+//                    sugExp.set(i, new Junction(true, sugChild, baseNegation));
+//                }
+//            }
         }
         if (sugExp.size() > 1) {
-            data.suggestionPart = prepareClassExpression(new Junction(false, sugExp.toArray(ClassExpression[]::new)));
+            // data.suggestionPart = prepareClassExpression(new Junction(false,
+            // sugExp.toArray(ClassExpression[]::new)));
+            data.suggestionPart = new Junction(false, sugExp.toArray(ClassExpression[]::new));
         } else {
+            // data.suggestionPart = prepareClassExpression(sugExp.get(0));
             data.suggestionPart = sugExp.get(0);
         }
     }
@@ -173,9 +179,10 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         LOGGER.trace("Suggesting classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
         if (logic.supportsComplexConceptNegation()) {
-            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart);
+            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart,
+                    data.basePart);
         } else {
-            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart);
+            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, data.basePart);
         }
         return performClassSelection(data, positive, negative);
     }
@@ -184,7 +191,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             ClassExpression context) {
         LOGGER.trace("Suggesting negated classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
-        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart);
+        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart, data.basePart);
         return performClassSelection(data, positive, negative);
     }
 
@@ -200,15 +207,15 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
      * @return a SPARQL query that can be used to select the IRIs described above
      */
     protected String generateClassQuery(Collection<String> positive, Collection<String> negative,
-            ClassExpression context) {
+            ClassExpression context, ClassExpression filterExpression) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (COUNT(DISTINCT ?neg) AS ?negHits) WHERE {\n");
         queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) WHERE {\n        ");
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                // createNotExistsFilter(context, "?pos")
-                null, "?class a <" + OWL.Class.getURI() + "> .", v -> v + " a ?class .");
+                createNotExistsFilter(filterExpression, "?pos"), "?class a <" + OWL.Class.getURI() + "> .",
+                v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -237,15 +244,14 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
      * @return a SPARQL query that can be used to select the IRIs described above
      */
     protected String generateNegatedClassQuery(Collection<String> positive, Collection<String> negative,
-            ClassExpression context) {
+            ClassExpression context, ClassExpression filterExpression) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
         queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                // createNotExistsFilter(context, "?pos"),
-                null, "?class a <" + OWL.Class.getURI() + "> .",
+                createNotExistsFilter(filterExpression, "?pos"), "?class a <" + OWL.Class.getURI() + "> .",
                 v -> "?class a <" + OWL.Class.getURI() + "> .        \nFILTER NOT EXISTS { " + v + " a ?class . }");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
@@ -278,15 +284,15 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
      * @return a SPARQL query that can be used to select the IRIs described above
      */
     protected String generateClassQueryForGeneralNegation(Collection<String> positive, Collection<String> negative,
-            ClassExpression context) {
+            ClassExpression context, ClassExpression filterExpression) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?class (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
         queryBuilder.append("    { SELECT ?class (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                // createNotExistsFilter(context, "?pos"),
-                null, "?class a <" + OWL.Class.getURI() + "> .", v -> v + " a ?class .");
+                createNotExistsFilter(filterExpression, "?pos"), "?class a <" + OWL.Class.getURI() + "> .",
+                v -> v + " a ?class .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);
@@ -320,25 +326,25 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             Collection<String> negative, boolean inverted) {
         List<ScoredIRI> results = new ArrayList<>();
         if (logic.supportsAtomicNegation()) {
-            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, inverted);
+            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, data.basePart,
+                    inverted);
         } else {
             data.suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart,
-                    inverted);
+                    data.basePart, inverted);
         }
         performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), results);
         return results;
     }
 
     protected String generatePropertyQuery(Collection<String> positive, Collection<String> negative,
-            ClassExpression context, boolean inverted) {
+            ClassExpression context, ClassExpression filterExpression, boolean inverted) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?prop (MAX(?tp) AS ?posHits) (MAX(?fp) AS ?negHits) WHERE {\n");
         queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?tp) (0 AS ?fp) WHERE {\n        ");
         String valuesString = generateValuesStmt("?pos", positive.iterator());
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
-                // createNotExistsFilter(context, "?pos")
-                null, "?prop a <" + RDF.Property.getURI() + "> .",
+                createNotExistsFilter(filterExpression, "?pos"), "?prop a <" + RDF.Property.getURI() + "> .",
                 inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
@@ -358,7 +364,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     }
 
     protected String generatePropertyQueryWithoutNegation(Collection<String> positive, Collection<String> negative,
-            ClassExpression context, boolean inverted) {
+            ClassExpression context, ClassExpression filterExpression, boolean inverted) {
         StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append("SELECT ?prop (MAX(?pc) AS ?posHits) (COUNT(DISTINCT ?negId) AS ?negHits) WHERE {\n");
         queryBuilder.append("    { SELECT ?prop (COUNT(DISTINCT ?pos) AS ?pc) WHERE {\n        ");
@@ -452,7 +458,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     public Set<String> retrieveInstances(ClassExpression expression, Collection<String> positive,
             Collection<String> negative) {
         Set<String> instances = new HashSet<>();
-        LOGGER.trace("Scoring expression {}", expression);
+        LOGGER.trace("Retrieving instances of expression {}", expression);
         ClassExpression prepared = prepareClassExpression(expression);
         String query = generateSelectQueryForGeneralNegation(positive, negative, prepared);
         LOGGER.trace("Sending query {}", query);
@@ -505,37 +511,17 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         queryBuilder.append(" }\n");
     }
 
-    @Deprecated
-    protected String createNotExistsFilter(ClassExpression context, String instanceVariable) {
+    protected String createNotExistsFilter(ClassExpression filterExpression, String instanceVariable) {
         String filter = null;
-        if (context instanceof Junction) {
-            Junction junction = (Junction) context;
-            if (!junction.isConjunction()) {
-                // 1. Remove the part of the context that contains the marking
-                ClassExpression reducedExpression = context.accept(new SubExpressionDeleter());
-                List<ClassExpression> expressions = new ArrayList<>();
-                addUnionSubExpressionToFilter(reducedExpression, expressions);
-                // 2. Use the remaining part as filter
-                StringBuilder filterBuilder = new StringBuilder();
-                for (ClassExpression expression : expressions) {
-                    SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null,
-                            null);
-                    visitor.setIntermediateVariableName("?y");
-                    filterBuilder.append("FILTER NOT EXISTS { \n        ");
-                    // We have to add a dummy triple
-                    filterBuilder.append(instanceVariable);
-                    filterBuilder.append(" a <http://www.w3.org/2002/07/owl#NamedIndividual> . \n");
-                    expression.accept(visitor);
-                    filterBuilder.append(" }\n");
-                }
-//                ClassExpression filterExpression = new Junction(false, expressions.toArray(ClassExpression[]::new));
-//                filterExpression =  filterExpression.accept(new NegatingVisitor());
-//                SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, "?pos", null, null, null);
-//                visitor.setIntermediateVariableName("?y");
-//                filterExpression.accept(visitor);
-                filter = filterBuilder.toString();
-            }
+        if (filterExpression == null) {
+            return null;
         }
+        StringBuilder filterBuilder = new StringBuilder();
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(filterBuilder, instanceVariable, null, null, null,
+                null);
+        visitor.setIntermediateVariableName("?y");
+        visitor.visitNotExistsFilter(filterExpression);
+        filter = filterBuilder.toString();
         return filter;
     }
 

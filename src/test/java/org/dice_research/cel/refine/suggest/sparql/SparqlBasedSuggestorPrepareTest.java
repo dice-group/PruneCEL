@@ -38,12 +38,12 @@ public class SparqlBasedSuggestorPrepareTest {
 
         // ⌖⊔A
         input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"));
-        expectedSugPart = new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A", true));
+        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
         testCases.add(new Object[] { input, new NamedClass("A"), expectedSugPart });
 
         // ⌖⊔¬A
         input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A", true));
-        expectedSugPart = new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"));
+        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
         testCases.add(new Object[] { input, new NamedClass("A", true), expectedSugPart });
 
         // ∃role1.(⌖⊓∀role2.⊥)
@@ -59,12 +59,7 @@ public class SparqlBasedSuggestorPrepareTest {
         // ∀role1.(⌖⊔∀role2.⊥)
         input = new SimpleQuantifiedRole(false, "r1", false, new Junction(false, Suggestor.CONTEXT_POSITION_MARKER,
                 new SimpleQuantifiedRole(false, "r2", false, NamedClass.BOTTOM)));
-        expectedSugPart = new Junction(true,
-                new SimpleQuantifiedRole(false, "r1", false, Suggestor.CONTEXT_POSITION_MARKER),
-                new SimpleQuantifiedRole(true, "r1", false,
-                        new SimpleQuantifiedRole(true, "r2", false, NamedClass.TOP)));
-        testCases.add(new Object[] { input, new SimpleQuantifiedRole(false, "r1", false,
-                new SimpleQuantifiedRole(false, "r2", false, NamedClass.BOTTOM)), expectedSugPart });
+        testCases.add(new Object[] { input, null, input });
 
         // S⊔(∃m.(⌖⊓B)⊓(¬G⊔P)⊓¬M⊓¬D)
         input = new Junction(false, new NamedClass("S"),
@@ -77,13 +72,11 @@ public class SparqlBasedSuggestorPrepareTest {
                 new Junction(true,
                         new SimpleQuantifiedRole(true, "m", false,
                                 new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("B"))),
-                        new NamedClass("G", true), new NamedClass("M", true), new NamedClass("D", true),
-                        new NamedClass("S", true)),
+                        new NamedClass("G", true), new NamedClass("M", true), new NamedClass("D", true)),
                 new Junction(true,
                         new SimpleQuantifiedRole(true, "m", false,
                                 new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("B"))),
-                        new NamedClass("P"), new NamedClass("M", true), new NamedClass("D", true),
-                        new NamedClass("S", true)));
+                        new NamedClass("P"), new NamedClass("M", true), new NamedClass("D", true)));
         testCases.add(new Object[] { input, new NamedClass("S"), expectedSugPart });
 
         return testCases;

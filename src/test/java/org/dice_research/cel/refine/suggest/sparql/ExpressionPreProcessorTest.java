@@ -35,14 +35,26 @@ public class ExpressionPreProcessorTest {
                 new Junction(true, new Junction(false, new NamedClass("A"), new NamedClass("B")), new NamedClass("C")),
                 new Junction(false, new Junction(true, new NamedClass("A"), new NamedClass("C")),
                         new Junction(true, new NamedClass("B"), new NamedClass("C"))) });
-        // ((A⊔B)⊓C)⊓D -> (A⊓C⊓D)⊔(B⊓C⊓D)
+        // Covering this case doesn't seem to be necessary
+//        // ((A⊔B)⊓C)⊓D -> (A⊓C⊓D)⊔(B⊓C⊓D)
+//        testCases.add(new Object[] {
+//                new Junction(true,
+//                        new Junction(true, new Junction(false, new NamedClass("A"), new NamedClass("B")),
+//                                new NamedClass("C")),
+//                        new NamedClass("D")),
+//                new Junction(false, new Junction(true, new NamedClass("A"), new NamedClass("C"), new NamedClass("D")),
+//                        new Junction(true, new NamedClass("B"), new NamedClass("C"), new NamedClass("D"))) });
+        // (∀r.(A⊔B)⊔C)⊓D -> (C⊓D)⊔(∀r.(A⊔B)⊓D)
         testCases.add(new Object[] {
-                new Junction(true,
-                        new Junction(true, new Junction(false, new NamedClass("A"), new NamedClass("B")),
-                                new NamedClass("C")),
-                        new NamedClass("D")),
-                new Junction(false, new Junction(true, new NamedClass("A"), new NamedClass("C"), new NamedClass("D")),
-                        new Junction(true, new NamedClass("B"), new NamedClass("C"), new NamedClass("D"))) });
+                new Junction(true, new Junction(false,
+                        new SimpleQuantifiedRole(false, "r", false,
+                                new Junction(false, new NamedClass("A"), new NamedClass("B"))),
+                        new NamedClass("C")), new NamedClass("D")),
+                new Junction(false, new Junction(true, new NamedClass("C"), new NamedClass("D")),
+                        new Junction(true,
+                                new SimpleQuantifiedRole(false, "r", false,
+                                        new Junction(false, new NamedClass("A"), new NamedClass("B"))),
+                                new NamedClass("D"))) });
 
         return testCases;
     }

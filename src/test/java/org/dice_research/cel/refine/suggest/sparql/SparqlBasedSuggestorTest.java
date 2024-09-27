@@ -61,6 +61,23 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
         Property role2 = ResourceFactory.createProperty("http://example.org/role2");
         Resource[] roles = new Resource[] { role1, role2 };
 
+        // ⌖⊔∀role1.⊥
+        input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER,
+                new SimpleQuantifiedRole(false, role1.getURI(), false, NamedClass.BOTTOM));
+        model = TestHelper.initModel(classes, roles, individuals);
+        model.add(pos1, role1, x1);
+        model.add(pos1, RDF.type, classA);
+        model.add(pos2, RDF.type, classC);
+        model.add(neg1, role1, x2);
+        model.add(neg1, RDF.type, classA);
+        model.add(neg2, role1, x3);
+        model.add(neg2, RDF.type, classB);
+        model.add(neg3, role1, x4);
+        testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
+                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 2, 1), new ScoredIRI(classB.getURI(), 1, 1) },
+                new ScoredIRI[] { new ScoredIRI(role1.getURI(), 2, 3) } });
+
         // ∃role1.(⌖⊓∀role2.⊥)
         input = new SimpleQuantifiedRole(true, role1.getURI(), false,
                 new Junction(true, Suggestor.CONTEXT_POSITION_MARKER,
@@ -121,8 +138,34 @@ public class SparqlBasedSuggestorTest implements Comparator<ScoredIRI> {
         model.add(x4, RDF.type, classC);
         testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
                 new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
-                new ScoredIRI[] { new ScoredIRI(classC.getURI(), 2, 3) },
+                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 2, 2), new ScoredIRI(classB.getURI(), 2, 2),
+                        new ScoredIRI(classC.getURI(), 2, 3) },
                 new ScoredIRI[] { new ScoredIRI(role1.getURI(), 2, 3), new ScoredIRI(role2.getURI(), 2, 3) } });
+
+        // ∀role1.⊥⊔∀role2.⌖
+        input = new Junction(false, new SimpleQuantifiedRole(false, role1.getURI(), false, NamedClass.BOTTOM),
+                new SimpleQuantifiedRole(false, role2.getURI(), false, Suggestor.CONTEXT_POSITION_MARKER));
+        model = TestHelper.initModel(classes, roles, individuals);
+        model.add(pos1, role1, x1);
+        model.add(pos1, role2, x1);
+        model.add(pos2, RDF.type, classC); // ∀role1.⊥
+        model.add(pos2, role2, x3);
+        model.add(neg1, role1, x2);
+        model.add(neg1, role2, x3);
+        model.add(neg2, role1, x3);
+        model.add(neg3, role2, x4); // ∀role1.⊥
+        model.add(x1, RDF.type, classA);
+        model.add(x2, RDF.type, classA);
+        model.add(x3, RDF.type, classB);
+        model.add(x3, role1, x4);
+        model.add(x4, role2, x1);
+        model.add(x4, role1, x3);
+        model.add(x4, RDF.type, classC);
+        testCases.add(new Object[] { input, "ALC", model, new String[] { pos1.getURI(), pos2.getURI() },
+                new String[] { neg1.getURI(), neg2.getURI(), neg3.getURI() },
+                new ScoredIRI[] { new ScoredIRI(classA.getURI(), 2, 2), new ScoredIRI(classB.getURI(), 1, 3),
+                        new ScoredIRI(classC.getURI(), 1, 2) },
+                new ScoredIRI[] { new ScoredIRI(role1.getURI(), 1, 3), new ScoredIRI(role2.getURI(), 1, 2) } });
 
         return testCases;
     }
