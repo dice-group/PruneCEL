@@ -68,7 +68,7 @@ public class SuggestorBasedRefinementOperatorTest {
 
             SuggestorBasedRefinementOperator operator = new SuggestorBasedRefinementOperator(suggestor, dl,
                     new AccuracyCalculator(positives.size(), negatives.size()), positives, negatives);
-            Set<ScoredClassExpression> expressions = operator.refine(input);
+            Set<ScoredClassExpression> expressions = operator.refine(input, 0);
 
             Set<ScoredClassExpression> difference = SetUtils.difference(expected, expressions);
             Assert.assertTrue("Couldn't find expected expressions " + difference.toString() + " in " + expressions,

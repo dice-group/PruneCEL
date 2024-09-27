@@ -16,6 +16,7 @@ import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
 import org.dice_research.cel.io.IntermediateResultPrinter;
+import org.dice_research.cel.io.NullIntermediateResultPrinter;
 import org.dice_research.cel.refine.RefinementOperator;
 import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
@@ -48,6 +49,10 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
             OutputStream logStream, IntermediateResultPrinter iResultPrinter, long timeToStop, int localMaxIterations) {
         LOGGER.info("Starting search with {} positives and {} negatives.", positive.size(), negative.size());
+        if (iResultPrinter == null) {
+            iResultPrinter = new NullIntermediateResultPrinter();
+        }
+        int minRecursionPosCount = (int) Math.ceil(Math.max(positive.size() * 0.1, 2.0));
         TopDoubleObjectCollection<ScoredClassExpression> topExpressions = new TopDoubleObjectCollection<>(10, false);
         Set<ScoredClassExpression> seenExpressions = new HashSet<>();
         Queue<ScoredClassExpression> queue = new PriorityQueue<ScoredClassExpression>(
@@ -69,9 +74,7 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
         nextBestExpression = scoreCalculator.score(NamedClass.TOP, positive.size(), negative.size(), false);
         queue.add(nextBestExpression);
         topExpressions.add(nextBestExpression.getClassificationScore(), nextBestExpression);
-        if (iResultPrinter != null) {
-            iResultPrinter.printIntermediateResults(topExpressions);
-        }
+        iResultPrinter.printIntermediateResults(topExpressions);
         int iterationCount = 0;
         // Iterate over the queue while
         while (// 1. the queue is not empty
@@ -86,7 +89,7 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
             // Refine this expression
-            newExpressions = rho.refine(nextBestExpression.getClassExpression());
+            newExpressions = rho.refine(nextBestExpression.getClassExpression(), timeToStop);
             // Check the expressions
             for (ScoredClassExpression newExpression : newExpressions) {
                 // If 1) we haven't seen this before AND 2a) we are configured to not further
@@ -98,16 +101,25 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
                         || (newExpression.isAddedEdge()))) {
                     queue.add(newExpression);
                     topExpressions.add(newExpression.getClassificationScore(), newExpression);
-                    if ((getPrecision(newExpression) >= precisionThreshold) && (newExpression.getPosCount() > 1)
+                    if ((getPrecision(newExpression) >= precisionThreshold) && (newExpression.getPosCount() >= minRecursionPosCount)
                             && (newExpression.getPosCount() < (positive.size() - 1))) {
                         mostPreciseExpressions.add(newExpression.getPosCount(), newExpression);
                     }
                 }
             }
-            if (mostPreciseExpressions.size() > 0) {
+            if (
+            // The best expression has not the perfect score
+            (topExpressions.values.length == 0 || topExpressions.values[0] < perfectScore) &&
+            // There are very precise expressions
+                    mostPreciseExpressions.size() > 0) {
                 int pos = 0;
                 int length = mostPreciseExpressions.size();
-                while ((pos < length) && (localMaxIterations == 0 || iterationCount < localMaxIterations)
+                while ((pos < length) &&
+                // The best expression has not the perfect score
+                        (topExpressions.values.length == 0 || topExpressions.values[0] < perfectScore) &&
+                        // Maximum iterations haven't been reached yet
+                        (localMaxIterations == 0 || iterationCount < localMaxIterations)
+                        // Maximum runtime hasn't been reached yet
                         && (maxTime == 0 || (System.currentTimeMillis() < timeToStop))) {
                     // Try recursion
                     // 1. Figure out the remaining positives
@@ -126,8 +138,10 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
                         LOGGER.info(
                                 "Trying to solve the remaining sub problem recursively for the remaining {} positives ...",
                                 remainingPositives.size());
+                        iResultPrinter.recursionStarts();
                         List<ScoredClassExpression> subProblemResults = findClassExpression(remainingPositives,
                                 negative, logStream, iResultPrinter, timeToStop, MAX_ITERATIONS_FOR_RECURSION);
+                        iResultPrinter.recursionEnds();
                         if (subProblemResults.size() > 1) {
                             ClassExpression newExpression = new Junction(false, mostPrecise.getClassExpression(),
                                     subProblemResults.get(0).getClassExpression());
@@ -145,9 +159,7 @@ public class SimpleRecursivePruneCEL extends PruneCEL {
                 mostPreciseExpressions.clear();
             }
             iterationCount++;
-            if (iResultPrinter != null) {
-                iResultPrinter.printIntermediateResults(topExpressions);
-            }
+            iResultPrinter.printIntermediateResults(topExpressions);
         }
         LOGGER.info("Stopping search. Saw {} expressions.", seenExpressions.size());
         return Stream.of(topExpressions.getObjects()).map(o -> (ScoredClassExpression) o).toList();

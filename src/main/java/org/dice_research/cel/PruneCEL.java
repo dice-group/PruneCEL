@@ -79,6 +79,9 @@ public class PruneCEL {
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
             OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         long startTime = System.currentTimeMillis();
+        if (iResultPrinter != null) {
+            iResultPrinter.setStartTime(startTime);
+        }
         long timeToStop = startTime + maxTime;
         return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
@@ -123,7 +126,7 @@ public class PruneCEL {
             LOGGER.info("Refining rScore={}, cScore={}, ce={}", nextBestExpression.getRefinementScore(),
                     nextBestExpression.getClassificationScore(), nextBestExpression.getClassExpression());
             // Refine this expression
-            newExpressions = rho.refine(nextBestExpression.getClassExpression());
+            newExpressions = rho.refine(nextBestExpression.getClassExpression(), timeToStop);
             // Check the expressions
             for (ScoredClassExpression newExpression : newExpressions) {
                 // If 1) we haven't seen this before AND 2a) we are configured to not further
@@ -231,8 +234,8 @@ public class PruneCEL {
         // XXX Set SPARQL endpoint
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
-        String endpoint = "http://localhost:3030/family/sparql";
-//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+//        String endpoint = "http://localhost:3030/family/sparql";
+        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
@@ -247,7 +250,7 @@ public class PruneCEL {
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
         boolean useCache = true;
-        boolean debugMode = true;
+        boolean debugMode = false;
 
         try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
@@ -264,7 +267,7 @@ public class PruneCEL {
             // XXX Max iterations of the refinement
             // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
-            cel.setMaxTime(600000);
+            cel.setMaxTime(60000);
             // XXX (Optional) try to avoid refining expressions that have not been created
             // in a promising way (i.e., just added a class to an existing expression
             // without changing the accuracy of the expression)
@@ -275,8 +278,8 @@ public class PruneCEL {
 
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
-            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
-            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
+//            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
@@ -285,9 +288,38 @@ public class PruneCEL {
 //            ClassExpression ce = new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot", false,
 //                    new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new SimpleQuantifiedRole(false, "https://nlp.stanford.edu/nlp#obj", false,
 //                                    NamedClass.BOTTOM)));
+//            ce = new Junction(true,
+////                    new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasLiteralAnswer", false,
+////                    NamedClass.BOTTOM),
+//                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuestionWord", false,
+//                            NamedClass.TOP),
+//                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuery", false,
+//                            new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasEntity", false,
+//                                    new Junction(false, new NamedClass("http://dbpedia.org/ontology/Company"),
+//                                            new NamedClass("http://dbpedia.org/ontology/Location"),
+//                                            new NamedClass("http://dbpedia.org/ontology/MusicGenre"),
+//                                            new NamedClass("http://dbpedia.org/ontology/Currency"),
+//                                            new Junction(true, new SimpleQuantifiedRole(true,
+//                                                    "http://xmlns.com/foaf/0.1/name", false,
+//                                                    NamedClass.TOP),
+//                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
+//                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
+//                ⊓
+//                ∃.∃.(
+//                    http://dbpedia.org/ontology/Company
+//                    ⊔
+//                    http://dbpedia.org/ontology/Location
+//                    ⊔
+//                    http://dbpedia.org/ontology/MusicGenre
+//                    ⊔
+//                    (∃http://xmlns.com/foaf/0.1/name.⊤⊓http://www.w3.org/2004/02/skos/core#Concept⊓http://dbpedia.org/ontology/Agent)
+//                    ⊔
+//                    http://dbpedia.org/ontology/Currency
+//                    )
 //            LearningProblem prob = problems.iterator().next();
 //            System.out.println(suggestor.suggestProperty(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
+//            System.out.println(ce);
 //            ce = (new NegatingVisitor()).negateExpression(ce);
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
             // DEBUG CODE END!!!

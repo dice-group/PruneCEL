@@ -18,8 +18,11 @@ public interface RefinementOperator {
      * expressions that are refinements of the given expression.
      * 
      * @param nextBestExpression the class expression that should be refined further
+     * @param timeToStop         the point in time at which the refinement has to
+     *                           stop. If the value is below or equal to 0, it will
+     *                           be ignored.
      * @return a set of new class expressions that are refinements of the given
      *         expression.
      */
-    Set<ScoredClassExpression> refine(ClassExpression nextBestExpression);
+    Set<ScoredClassExpression> refine(ClassExpression nextBestExpression, long timeToStop);
 }

@@ -100,7 +100,7 @@ public class Solution {
     }
 
     public Collection<ScoredClassExpression> refine() {
-        return subProblem.getRefinementOperator().refine(partialSolution.getClassExpression());
+        return subProblem.getRefinementOperator().refine(partialSolution.getClassExpression(), 0);
     }
 
 }
