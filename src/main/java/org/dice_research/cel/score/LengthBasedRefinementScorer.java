@@ -8,25 +8,22 @@ import org.dice_research.cel.expression.SimpleQuantifiedRole;
 
 public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorator {
 
-    protected double propertyPenalty = 0.01;
-    protected double junctionPenalty = 0.005;
+    protected double lengthPenalty = 0.01;
 
     public LengthBasedRefinementScorer(ScoreCalculator decorated) {
         super(decorated);
     }
 
-    public LengthBasedRefinementScorer(ScoreCalculator decorated, double propertyPenalty, double junctionPenalty) {
+    public LengthBasedRefinementScorer(ScoreCalculator decorated, double lengthPenalty) {
         super(decorated);
-        this.propertyPenalty = propertyPenalty;
-        this.junctionPenalty = junctionPenalty;
+        this.lengthPenalty = lengthPenalty;
     }
 
     @Override
     public double calculateRefinementScore(int posCount, int negCount, double classificationScore, ClassExpression ce) {
         LengthDetectingVisitor visitor = new LengthDetectingVisitor();
         ce.accept(visitor);
-        return classificationScore
-                - ((visitor.propertyCount * propertyPenalty) + (visitor.junctionMemberCount * junctionPenalty));
+        return classificationScore - (visitor.length * lengthPenalty);
     }
 
     public static class Factory implements ScoreCalculatorFactory {
@@ -43,11 +40,16 @@ public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorato
         }
     }
 
+    /**
+     * Length as defined in "Learning Concept Lengths Accelerates Concept Learning
+     * in ALC"
+     * 
+     * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+     *
+     */
     public static class LengthDetectingVisitor implements ClassExpressionVisitor {
 
-        protected int junctionCount = 0;
-        protected int junctionMemberCount = 0;
-        protected int propertyCount = 0;
+        protected int length = 0;
 
         public LengthDetectingVisitor() {
             super();
@@ -55,12 +57,16 @@ public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorato
 
         @Override
         public void visitNamedClass(NamedClass node) {
+            if (node.isNegated()) {
+                length += 2;
+            } else {
+                length += 1;
+            }
         }
 
         @Override
         public void visitJunction(Junction node) {
-            this.junctionCount++;
-            this.junctionMemberCount += node.getChildren().size();
+            length += 1;
             for (ClassExpression child : node.getChildren()) {
                 child.accept(this);
             }
@@ -68,50 +74,8 @@ public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorato
 
         @Override
         public void visitSimpleQuantificationRole(SimpleQuantifiedRole node) {
-            this.propertyCount++;
+            length += 2;
             node.getTailExpression().accept(this);
-        }
-
-        /**
-         * @return the junctionCount
-         */
-        public int getJunctionCount() {
-            return junctionCount;
-        }
-
-        /**
-         * @param junctionCount the junctionCount to set
-         */
-        public void setJunctionCount(int junctionCount) {
-            this.junctionCount = junctionCount;
-        }
-
-        /**
-         * @return the junctionMemberCount
-         */
-        public int getJunctionMemberCount() {
-            return junctionMemberCount;
-        }
-
-        /**
-         * @param junctionMemberCount the junctionMemberCount to set
-         */
-        public void setJunctionMemberCount(int junctionMemberCount) {
-            this.junctionMemberCount = junctionMemberCount;
-        }
-
-        /**
-         * @return the propertyCount
-         */
-        public int getPropertyCount() {
-            return propertyCount;
-        }
-
-        /**
-         * @param propertyCount the propertyCount to set
-         */
-        public void setPropertyCount(int propertyCount) {
-            this.propertyCount = propertyCount;
         }
 
     }
