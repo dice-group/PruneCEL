@@ -79,7 +79,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             }
             data.addBaseScore(scoredIris);
             Optional<ScoredIRI> faultyResult = scoredIris.stream().filter(
-                    s -> s.posCount < 0 || s.posCount > data.maxPos || s.negCount < 0 || s.posCount > data.maxNeg)
+                    s -> s.posCount < 0 || s.posCount > data.maxPos || s.negCount < 0 || s.negCount > data.maxNeg)
                     .findFirst();
             if (faultyResult.isPresent()) {
                 LOGGER.error("Got a faulty count: #positives={}, #negatives={}, scoredIRI={}", data.maxPos, data.maxNeg,

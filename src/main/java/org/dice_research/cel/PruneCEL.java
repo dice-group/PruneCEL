@@ -279,7 +279,8 @@ public class PruneCEL {
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
 //            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
+            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
