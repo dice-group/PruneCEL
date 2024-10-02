@@ -41,6 +41,7 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
     protected Function<String, String> variableToStmtOnMarkedPosition;
     protected NegatingVisitor negator = new NegatingVisitor();
     protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
+    protected FilterNotExistsChecker fneChecker = new FilterNotExistsChecker();
     protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
 
     /**
@@ -206,9 +207,7 @@ public class SparqlBuildingVisitor implements ClassExpressionVisitor {
         isRoot = false;
         for (ClassExpression expression : expressions) {
             // If this is an expression would create a FILTER NON EXISTS statement
-            if (((expression instanceof NamedClass) && (((NamedClass) expression).isNegated()))
-                    || ((expression instanceof SimpleQuantifiedRole)
-                            && (!((SimpleQuantifiedRole) expression).isExists()))) {
+            if (expression.accept(fneChecker)) {
                 // Simply negate the statement and add it
                 ClassExpression negated = negator.negateExpression(expression);
                 negated = preprocessor.preprocess(negated);

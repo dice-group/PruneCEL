@@ -29,8 +29,8 @@ import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SelectionScores;
 import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
+import org.dice_research.cel.score.AccuracyCalculator;
 import org.dice_research.cel.score.AvoidingPickySolutionsDecorator;
-import org.dice_research.cel.score.BalancedAccuracyCalculator;
 import org.dice_research.cel.score.LengthBasedRefinementScorer;
 import org.dice_research.cel.score.ScoreCalculator;
 import org.dice_research.cel.score.ScoreCalculatorFactory;
@@ -82,7 +82,7 @@ public class PruneCEL {
         if (iResultPrinter != null) {
             iResultPrinter.setStartTime(startTime);
         }
-        long timeToStop =  maxTime > 0 ? startTime + maxTime : 0;
+        long timeToStop = maxTime > 0 ? startTime + maxTime : 0;
         return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
 
@@ -235,14 +235,17 @@ public class PruneCEL {
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
 //        String endpoint = "http://localhost:3030/family/sparql";
-        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+        // QALD9-plus-wikidata
+        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
         ScoreCalculatorFactory factory = null;
         // XXX Choose either F1 or balanced accuracy
         // factory = new F1MeasureCalculator.Factory();
-        factory = new BalancedAccuracyCalculator.Factory();
+        //factory = new BalancedAccuracyCalculator.Factory();
+        factory = new AccuracyCalculator.Factory();
 
         // Punish long expressions
         factory = new LengthBasedRefinementScorer.Factory(factory);
@@ -267,7 +270,7 @@ public class PruneCEL {
             // XXX Max iterations of the refinement
             // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
-            cel.setMaxTime(60000);
+            cel.setMaxTime(600000);
             // XXX (Optional) try to avoid refining expressions that have not been created
             // in a promising way (i.e., just added a class to an existing expression
             // without changing the accuracy of the expression)
@@ -279,8 +282,10 @@ public class PruneCEL {
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
 //            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
-            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
+//            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
+            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_deeppavlov_reverse.json");
+            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
@@ -289,9 +294,15 @@ public class PruneCEL {
 //            ClassExpression ce = new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot", false,
 //                    new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new SimpleQuantifiedRole(false, "https://nlp.stanford.edu/nlp#obj", false,
 //                                    NamedClass.BOTTOM)));
-//            ce = new Junction(true,
-////                    new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasLiteralAnswer", false,
-////                    NamedClass.BOTTOM),
+//            ce = new Junction(false,
+//                    new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasQuestionWord", false,
+//                    NamedClass.BOTTOM),
+//            new Junction(true,
+//                  new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasLiteralAnswer", false,
+//                  NamedClass.BOTTOM),
+//                  new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasIRIAnswer", false,
+//                  NamedClass.BOTTOM)
+//                    ),Suggestor.CONTEXT_POSITION_MARKER);
 //                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuestionWord", false,
 //                            NamedClass.TOP),
 //                    new SimpleQuantifiedRole(true, "http://w3id.org/dice-research/qa-bench#hasQuery", false,
@@ -305,20 +316,15 @@ public class PruneCEL {
 //                                                    NamedClass.TOP),
 //                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
 //                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
-//                ⊓
-//                ∃.∃.(
-//                    http://dbpedia.org/ontology/Company
-//                    ⊔
-//                    http://dbpedia.org/ontology/Location
-//                    ⊔
-//                    http://dbpedia.org/ontology/MusicGenre
-//                    ⊔
-//                    (∃http://xmlns.com/foaf/0.1/name.⊤⊓http://www.w3.org/2004/02/skos/core#Concept⊓http://dbpedia.org/ontology/Agent)
-//                    ⊔
-//                    http://dbpedia.org/ontology/Currency
-//                    )
+//            ∀http://w3id.org/dice-research/qa-bench#hasQuestionWord.⊥
+//            ⊔
+//            (
+//                    ∀http://w3id.org/dice-research/qa-bench#hasLiteralAnswer.⊥
+//                    ⊓
+//                    ∀http://w3id.org/dice-research/qa-bench#hasIRIAnswer.⊥
+//            )
 //            LearningProblem prob = problems.iterator().next();
-//            System.out.println(suggestor.suggestProperty(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
+//            System.out.println(suggestor.suggestClass(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
 //            System.out.println(ce);
 //            ce = (new NegatingVisitor()).negateExpression(ce);
