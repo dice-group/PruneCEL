@@ -21,6 +21,7 @@ import org.apache.jena.vocabulary.RDF;
 import org.dice_research.cel.DescriptionLogic;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.Junction;
+import org.dice_research.cel.expression.NegatingVisitor;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.ScoredIRI;
 import org.dice_research.cel.refine.suggest.SelectionScores;
@@ -150,26 +151,32 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
                 data.basePart = baseExp.get(0);
             }
 //            We won't add the negation of the base part here. Instead, we add them as filters later on. That removes the need to negate them twice and also reduces the amount of potential errors.
-//            // Add the negation to the suggestion children
-//            ClassExpression baseNegation = data.basePart.accept(new NegatingVisitor());
-//            for (int i = 0; i < sugExp.size(); ++i) {
-//                ClassExpression sugChild = sugExp.get(i);
-//                if ((sugChild instanceof Junction) && ((Junction) sugChild).isConjunction()) {
-//                    // We can add the negations directly to the existing conjunction
-//                    ((Junction) sugChild).getChildren().add(baseNegation);
-//                } else {
-//                    // We create a new conjunction
-//                    sugExp.set(i, new Junction(true, sugChild, baseNegation));
-//                }
-//            }
+            // Add the negation to the suggestion children
+            ClassExpression baseNegation = data.basePart.accept(new NegatingVisitor());
+            Junction childJunction;
+            for (int i = 0; i < sugExp.size(); ++i) {
+                ClassExpression sugChild = sugExp.get(i);
+                if ((sugChild instanceof Junction) && ((Junction) sugChild).isConjunction()) {
+                    // We can add the negations directly to the existing conjunction
+                    childJunction = ((Junction) sugChild);
+                } else {
+                    // We create a new conjunction
+                    childJunction = new Junction(true, sugChild);
+                }
+                if ((baseNegation instanceof Junction) && ((Junction) baseNegation).isConjunction()) {
+                    childJunction.getChildren().addAll(((Junction) baseNegation).getChildren());
+                } else {
+                    childJunction.getChildren().add(baseNegation);
+                }
+                sugExp.set(i, childJunction);
+            }
         }
         if (sugExp.size() > 1) {
-            // data.suggestionPart = prepareClassExpression(new Junction(false,
-            // sugExp.toArray(ClassExpression[]::new)));
-            data.suggestionPart = new Junction(false, sugExp.toArray(ClassExpression[]::new));
+            data.suggestionPart = prepareClassExpression(new Junction(false, sugExp.toArray(ClassExpression[]::new)));
+//            data.suggestionPart = new Junction(false, sugExp.toArray(ClassExpression[]::new));
         } else {
-            // data.suggestionPart = prepareClassExpression(sugExp.get(0));
-            data.suggestionPart = sugExp.get(0);
+            data.suggestionPart = prepareClassExpression(sugExp.get(0));
+//            data.suggestionPart = sugExp.get(0);
         }
     }
 
@@ -179,10 +186,9 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         LOGGER.trace("Suggesting classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
         if (logic.supportsComplexConceptNegation()) {
-            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart,
-                    data.basePart);
+            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart, null);
         } else {
-            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, data.basePart);
+            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, null);
         }
         return performClassSelection(data, positive, negative);
     }
@@ -191,7 +197,7 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             ClassExpression context) {
         LOGGER.trace("Suggesting negated classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
-        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart, data.basePart);
+        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart, null);
         return performClassSelection(data, positive, negative);
     }
 
@@ -326,11 +332,10 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             Collection<String> negative, boolean inverted) {
         List<ScoredIRI> results = new ArrayList<>();
         if (logic.supportsAtomicNegation()) {
-            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, data.basePart,
-                    inverted);
+            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, null, inverted);
         } else {
-            data.suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart,
-                    data.basePart, inverted);
+            data.suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart, null,
+                    inverted);
         }
         performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), results);
         return results;

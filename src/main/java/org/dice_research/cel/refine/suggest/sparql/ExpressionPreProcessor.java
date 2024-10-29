@@ -1,9 +1,11 @@
 package org.dice_research.cel.refine.suggest.sparql;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.dice_research.cel.expression.BasicSanityCheckingVisitor;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.ClassExpressionVisitingCreator;
 import org.dice_research.cel.expression.Junction;
@@ -12,12 +14,22 @@ import org.dice_research.cel.expression.SimpleQuantifiedRole;
 
 public class ExpressionPreProcessor implements ClassExpressionVisitingCreator<ClassExpression[]> {
 
+    protected BasicSanityCheckingVisitor checker = new BasicSanityCheckingVisitor();
+
     public ClassExpression preprocess(ClassExpression ce) {
         ClassExpression[] subExpressions = ce.accept(this);
-        if (subExpressions.length == 1) {
+        // Check them
+        ClassExpression[] newExpressions = Arrays.stream(subExpressions).filter(checker)
+                .toArray(ClassExpression[]::new);
+        if (subExpressions.length != newExpressions.length) {
+            System.out.println(subExpressions.length + " vs. " + newExpressions.length);
+        }
+        if (newExpressions.length == 0) {
             return subExpressions[0];
+        } else if (newExpressions.length == 1) {
+            return newExpressions[0];
         } else {
-            return new Junction(false, subExpressions);
+            return new Junction(false, newExpressions);
         }
     }
 

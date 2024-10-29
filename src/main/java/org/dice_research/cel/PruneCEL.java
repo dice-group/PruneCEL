@@ -20,6 +20,7 @@ import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
+import org.dice_research.cel.expression.SimpleQuantifiedRole;
 import org.dice_research.cel.io.IntermediateResultPrinter;
 import org.dice_research.cel.io.LearningProblem;
 import org.dice_research.cel.io.csv.CSVIntermediateResultPrinter;
@@ -235,16 +236,18 @@ public class PruneCEL {
         // String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
 //        String endpoint = "http://localhost:3030/family/sparql";
-//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // QALD9-plus-wikidata
-        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
+//         Family
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9010/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
         ScoreCalculatorFactory factory = null;
         // XXX Choose either F1 or balanced accuracy
         // factory = new F1MeasureCalculator.Factory();
-        //factory = new BalancedAccuracyCalculator.Factory();
+        // factory = new BalancedAccuracyCalculator.Factory();
         factory = new AccuracyCalculator.Factory();
 
         // Punish long expressions
@@ -253,7 +256,7 @@ public class PruneCEL {
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
         boolean useCache = true;
-        boolean debugMode = false;
+        boolean debugMode = true;
 
         try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
@@ -283,14 +286,28 @@ public class PruneCEL {
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
 //            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
 //            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
-            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_deeppavlov_reverse.json");
-            //Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
+            // Collection<LearningProblem> problems =
+            // reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
+            // Collection<LearningProblem> problems =
+            // reader.readProblems("/home/micha/Downloads/TandF_deeppavlov_reverse.json");
+//            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/CousinTrain_Fold_3.json");
+            Collection<LearningProblem> problems = reader
+                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
 
             // DEBUG CODE!!!
 //            ClassExpression ce;
+//            ce = new Junction(false,
+//                    new Junction(true, new NamedClass("http://www.benchmark.org/family#Son", true),
+//                            new Junction(false, new NamedClass("http://www.benchmark.org/family#Grandfather", true),
+//                                    new NamedClass("http://www.benchmark.org/family#Father", true)),
+//                            new NamedClass("http://www.benchmark.org/family#Grandmother", true),
+//                            new NamedClass("http://www.benchmark.org/family#Daughter", true)),
+//                    new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#hasParent", false,
+//                            new Junction(false, new NamedClass("http://www.benchmark.org/family#Sister"),
+//                                    new NamedClass("http://www.benchmark.org/family#Brother"))));
+
 //            ClassExpression ce = new SimpleQuantifiedRole(false, "http://w3id.org/dice-research/qa-bench#hasNlpParseTreeRoot", false,
 //                    new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new SimpleQuantifiedRole(false, "https://nlp.stanford.edu/nlp#obj", false,
 //                                    NamedClass.BOTTOM)));
@@ -316,14 +333,15 @@ public class PruneCEL {
 //                                                    NamedClass.TOP),
 //                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
 //                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
-//            ∀http://w3id.org/dice-research/qa-bench#hasQuestionWord.⊥
-//            ⊔
-//            (
-//                    ∀http://w3id.org/dice-research/qa-bench#hasLiteralAnswer.⊥
-//                    ⊓
-//                    ∀http://w3id.org/dice-research/qa-bench#hasIRIAnswer.⊥
-//            )
-//            LearningProblem prob = problems.iterator().next();
+
+            // LearningProblem prob = problems.iterator().next();
+//            ScoreCalculator scoreCalculator = factory.create(prob.getPositiveExamples().size(),
+//                    prob.getNegativeExamples().size());
+//            RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator,
+//                    prob.getPositiveExamples(), prob.getNegativeExamples());
+//            Set<ScoredClassExpression> expressions = rho.refine(ce, System.currentTimeMillis() + 60000);
+//            System.out.println(expressions.size());
+
 //            System.out.println(suggestor.suggestClass(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
 //            System.out.println(ce);
