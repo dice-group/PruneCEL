@@ -38,13 +38,23 @@ public class SparqlBasedSuggestorPrepareTest {
 
         // ⌖⊔A
         input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"));
-        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
+        expectedSugPart = new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A", true));
         testCases.add(new Object[] { input, new NamedClass("A"), expectedSugPart });
+        // Old case, in which the disjunction would have been removed but its negation
+        // wouldn't have been added
+//        input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"));
+//        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
+//        testCases.add(new Object[] { input, new NamedClass("A"), expectedSugPart });
 
         // ⌖⊔¬A
         input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A", true));
-        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
+        expectedSugPart = new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"));
         testCases.add(new Object[] { input, new NamedClass("A", true), expectedSugPart });
+        // Old case, in which the disjunction would have been removed but its negation
+        // wouldn't have been added
+//        input = new Junction(false, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A", true));
+//        expectedSugPart = Suggestor.CONTEXT_POSITION_MARKER;
+//        testCases.add(new Object[] { input, new NamedClass("A", true), expectedSugPart });
 
         // ∃role1.(⌖⊓∀role2.⊥)
         input = new SimpleQuantifiedRole(true, "r1", false, new Junction(true, Suggestor.CONTEXT_POSITION_MARKER,
@@ -72,12 +82,22 @@ public class SparqlBasedSuggestorPrepareTest {
                 new Junction(true,
                         new SimpleQuantifiedRole(true, "m", false,
                                 new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("B"))),
-                        new NamedClass("G", true), new NamedClass("M", true), new NamedClass("D", true)),
+                        new NamedClass("G", true), new NamedClass("M", true), new NamedClass("D", true),
+                        new NamedClass("S", true)),
                 new Junction(true,
                         new SimpleQuantifiedRole(true, "m", false,
                                 new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("B"))),
-                        new NamedClass("P"), new NamedClass("M", true), new NamedClass("D", true)));
+                        new NamedClass("P"), new NamedClass("M", true), new NamedClass("D", true),
+                        new NamedClass("S", true)));
         testCases.add(new Object[] { input, new NamedClass("S"), expectedSugPart });
+
+        // (⌖⊓A)⊔(A⊓B) -> ⌖⊓¬A⊓¬B + A⊓B
+        input = new Junction(false, new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A")),
+                new Junction(true, new NamedClass("A"), new NamedClass("B")));
+        expectedSugPart = new Junction(true, Suggestor.CONTEXT_POSITION_MARKER, new NamedClass("A"),
+                new NamedClass("B", true));
+        testCases.add(
+                new Object[] { input, new Junction(true, new NamedClass("A"), new NamedClass("B")), expectedSugPart });
 
         return testCases;
     }
