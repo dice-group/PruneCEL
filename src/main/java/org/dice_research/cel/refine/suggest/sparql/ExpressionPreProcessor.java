@@ -21,9 +21,6 @@ public class ExpressionPreProcessor implements ClassExpressionVisitingCreator<Cl
         // Check them
         ClassExpression[] newExpressions = Arrays.stream(subExpressions).filter(checker)
                 .toArray(ClassExpression[]::new);
-        if (subExpressions.length != newExpressions.length) {
-            System.out.println(subExpressions.length + " vs. " + newExpressions.length);
-        }
         if (newExpressions.length == 0) {
             return subExpressions[0];
         } else if (newExpressions.length == 1) {
