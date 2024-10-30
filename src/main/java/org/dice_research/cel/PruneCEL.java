@@ -30,8 +30,8 @@ import org.dice_research.cel.refine.SuggestorBasedRefinementOperator;
 import org.dice_research.cel.refine.suggest.ExtendedSuggestor;
 import org.dice_research.cel.refine.suggest.SelectionScores;
 import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
-import org.dice_research.cel.score.AccuracyCalculator;
 import org.dice_research.cel.score.AvoidingPickySolutionsDecorator;
+import org.dice_research.cel.score.F1MeasureCalculator;
 import org.dice_research.cel.score.LengthBasedRefinementScorer;
 import org.dice_research.cel.score.ScoreCalculator;
 import org.dice_research.cel.score.ScoreCalculatorFactory;
@@ -233,10 +233,10 @@ public class PruneCEL {
 
     public static void main(String[] args) throws Exception {
         // XXX Set SPARQL endpoint
-        // String endpoint = "http://localhost:9080/sparql";
+         String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
 //        String endpoint = "http://localhost:3030/family/sparql";
-        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // QALD9-plus-wikidata
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
 //         Family
@@ -246,9 +246,9 @@ public class PruneCEL {
 
         ScoreCalculatorFactory factory = null;
         // XXX Choose either F1 or balanced accuracy
-        // factory = new F1MeasureCalculator.Factory();
+         factory = new F1MeasureCalculator.Factory();
         // factory = new BalancedAccuracyCalculator.Factory();
-        factory = new AccuracyCalculator.Factory();
+//        factory = new AccuracyCalculator.Factory();
 
         // Punish long expressions
         factory = new LengthBasedRefinementScorer.Factory(factory);
@@ -256,7 +256,8 @@ public class PruneCEL {
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
         boolean useCache = true;
-        boolean debugMode = true;
+        boolean debugMode = false;
+        boolean skipNonImproving = true;
 
         try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
@@ -273,11 +274,11 @@ public class PruneCEL {
             // XXX Max iterations of the refinement
             // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
-            cel.setMaxTime(600000);
+            cel.setMaxTime(60000);
             // XXX (Optional) try to avoid refining expressions that have not been created
             // in a promising way (i.e., just added a class to an existing expression
             // without changing the accuracy of the expression)
-            cel.setSkipNonImprovingStmts(true);
+            cel.setSkipNonImprovingStmts(skipNonImproving);
             // XXX Keep this commented for now
             // cel.activateRecursiveIteration(suggestor, 1.0, 0.5);
             cel.setDebugMode(debugMode);
@@ -291,14 +292,25 @@ public class PruneCEL {
             // Collection<LearningProblem> problems =
             // reader.readProblems("/home/micha/Downloads/TandF_deeppavlov_reverse.json");
 //            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/CousinTrain_Fold_3.json");
-            Collection<LearningProblem> problems = reader
-                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
+//            Collection<LearningProblem> problems = reader
+//                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/AuntTrain_Fold_2.json");
 
             // DEBUG CODE!!!
-//            ClassExpression ce;
-//            ce = new Junction(false,
+            ClassExpression ce;
+            ce = new Junction(true, new Junction(false,
+                    new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#married", false,
+                            new NamedClass("http://www.benchmark.org/family#Brother")),
+                    new Junction(true,
+                            new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#hasSibling", false,
+                                    new Junction(false, new NamedClass("http://www.benchmark.org/family#Mother"),
+                                            new NamedClass("http://www.benchmark.org/family#Father"))),
+                            new NamedClass("http://www.benchmark.org/family#Daughter"))),
+                    new NamedClass("http://www.benchmark.org/family#Female"));
+
+//            new Junction(false,
 //                    new Junction(true, new NamedClass("http://www.benchmark.org/family#Son", true),
 //                            new Junction(false, new NamedClass("http://www.benchmark.org/family#Grandfather", true),
 //                                    new NamedClass("http://www.benchmark.org/family#Father", true)),
@@ -334,13 +346,13 @@ public class PruneCEL {
 //                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
 //                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
 
-            // LearningProblem prob = problems.iterator().next();
-//            ScoreCalculator scoreCalculator = factory.create(prob.getPositiveExamples().size(),
-//                    prob.getNegativeExamples().size());
-//            RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator,
-//                    prob.getPositiveExamples(), prob.getNegativeExamples());
-//            Set<ScoredClassExpression> expressions = rho.refine(ce, System.currentTimeMillis() + 60000);
-//            System.out.println(expressions.size());
+            LearningProblem prob = problems.iterator().next();
+            ScoreCalculator scoreCalculator = factory.create(prob.getPositiveExamples().size(),
+                    prob.getNegativeExamples().size());
+            RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator,
+                    prob.getPositiveExamples(), prob.getNegativeExamples());
+            Set<ScoredClassExpression> expressions = rho.refine(ce, System.currentTimeMillis() + 60000);
+            System.out.println(expressions.size());
 
 //            System.out.println(suggestor.suggestClass(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
