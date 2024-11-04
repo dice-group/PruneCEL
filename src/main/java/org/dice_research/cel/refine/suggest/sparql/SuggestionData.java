@@ -2,6 +2,7 @@ package org.dice_research.cel.refine.suggest.sparql;
 
 import java.util.List;
 
+import org.apache.jena.query.Query;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.refine.suggest.ScoredIRI;
 import org.dice_research.cel.refine.suggest.SelectionScores;
@@ -10,7 +11,7 @@ public class SuggestionData {
 
     public ClassExpression suggestionPart;
     public ClassExpression basePart;
-    public String suggestionQuery;
+    public Query suggestionQuery;
     public int posCount;
     public int negCount;
     public int maxPos;

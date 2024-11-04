@@ -12,6 +12,9 @@ import java.util.function.Function;
 
 import org.aksw.jena_sparql_api.http.QueryExecutionFactoryHttp;
 import org.aksw.jenax.arq.connection.core.QueryExecutionFactory;
+import org.aksw.jenax.stmt.parser.query.SparqlQueryParser;
+import org.aksw.jenax.stmt.parser.query.SparqlQueryParserImpl;
+import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
@@ -27,6 +30,7 @@ import org.dice_research.cel.refine.suggest.ScoredIRI;
 import org.dice_research.cel.refine.suggest.SelectionScores;
 import org.dice_research.cel.refine.suggest.Suggestor;
 import org.dice_research.cel.sparql.InstanceRetriever;
+import org.dice_research.cel.sparql.MultiNotExistFilterFixingVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +47,11 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
     protected SuggestionCheckingVisitor sugChecker = new SuggestionCheckingVisitor();
     protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
+    protected SparqlQueryParser queryParser = new SparqlQueryParserImpl();
+    protected MultiNotExistFilterFixingVisitor classQueryVisitor = new MultiNotExistFilterFixingVisitor("?class",
+            OWL.Class.getURI());
+    protected MultiNotExistFilterFixingVisitor propertyQueryVisitor = new MultiNotExistFilterFixingVisitor("?prop",
+            RDF.Property.getURI());
 
     public SparqlBasedSuggestor(QueryExecutionFactory queryExecFactory, DescriptionLogic logic) {
         this.queryExecFactory = queryExecFactory;
@@ -185,19 +194,28 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             ClassExpression context) {
         LOGGER.trace("Suggesting classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
+        String suggestionQuery;
         if (logic.supportsComplexConceptNegation()) {
-            data.suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart, null);
+            suggestionQuery = generateClassQueryForGeneralNegation(positive, negative, data.suggestionPart, null);
         } else {
-            data.suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, null);
+            suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, null);
         }
+        data.suggestionQuery = prepareQuery(suggestionQuery, classQueryVisitor);
         return performClassSelection(data, positive, negative);
+    }
+
+    protected Query prepareQuery(String queryString, MultiNotExistFilterFixingVisitor visitor) {
+        Query query = queryParser.apply(queryString);
+        visitor.fixQuery(query);
+        return query;
     }
 
     public Collection<ScoredIRI> suggestNegatedClass(Collection<String> positive, Collection<String> negative,
             ClassExpression context) {
         LOGGER.trace("Suggesting negated classes for {}", context);
         SuggestionData data = prepareForSuggestion(context, positive.size(), negative.size());
-        data.suggestionQuery = generateNegatedClassQuery(positive, negative, data.suggestionPart, null);
+        data.suggestionQuery = prepareQuery(generateNegatedClassQuery(positive, negative, data.suggestionPart, null),
+                classQueryVisitor);
         return performClassSelection(data, positive, negative);
     }
 
@@ -331,12 +349,14 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
     protected Collection<ScoredIRI> suggestProperty(SuggestionData data, Collection<String> positive,
             Collection<String> negative, boolean inverted) {
         List<ScoredIRI> results = new ArrayList<>();
+        String suggestionQuery;
         if (logic.supportsAtomicNegation()) {
-            data.suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, null, inverted);
+            suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, null, inverted);
         } else {
-            data.suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart, null,
+            suggestionQuery = generatePropertyQueryWithoutNegation(positive, negative, data.suggestionPart, null,
                     inverted);
         }
+        data.suggestionQuery = prepareQuery(suggestionQuery, propertyQueryVisitor);
         performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), results);
         return results;
     }

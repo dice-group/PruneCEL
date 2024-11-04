@@ -20,7 +20,6 @@ import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredCEComparatorForRefinement;
 import org.dice_research.cel.expression.ScoredClassExpression;
-import org.dice_research.cel.expression.SimpleQuantifiedRole;
 import org.dice_research.cel.io.IntermediateResultPrinter;
 import org.dice_research.cel.io.LearningProblem;
 import org.dice_research.cel.io.csv.CSVIntermediateResultPrinter;
@@ -256,8 +255,9 @@ public class PruneCEL {
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
         boolean useCache = true;
-        boolean debugMode = false;
+        boolean debugMode = true;
         boolean skipNonImproving = true;
+        boolean recursive = false;
 
         try (SparqlBasedSuggestor suggestor = SparqlBasedSuggestor.create(endpoint, logic, useCache)) {
             suggestor.addToClassBlackList(OWL2.NamedIndividual.getURI());
@@ -265,12 +265,15 @@ public class PruneCEL {
 
             boolean printLogs = true;
 
-            // XXX We should use PruneCEL for now, you can try Recursive later
-//            PruneCEL cel = new PruneCEL(suggestor, logic, factory);
+            PruneCEL cel = null;
+            if(recursive) {
+                cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
+            } else {
+                cel = new PruneCEL(suggestor, logic, factory);
+            }
             // PruneCEL cel = new RecursivePruneCEL(suggestor, logic, factory, suggestor);
             // PruneCEL cel = new SingleThreadRecursivePruneCEL(suggestor, logic, factory,
             // suggestor);
-            PruneCEL cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             // XXX Max iterations of the refinement
             // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
@@ -296,19 +299,19 @@ public class PruneCEL {
 //                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/AuntTrain_Fold_2.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/QALD10Train_Fold_0.json");
 
             // DEBUG CODE!!!
-            ClassExpression ce;
-            ce = new Junction(true, new Junction(false,
-                    new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#married", false,
-                            new NamedClass("http://www.benchmark.org/family#Brother")),
-                    new Junction(true,
-                            new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#hasSibling", false,
-                                    new Junction(false, new NamedClass("http://www.benchmark.org/family#Mother"),
-                                            new NamedClass("http://www.benchmark.org/family#Father"))),
-                            new NamedClass("http://www.benchmark.org/family#Daughter"))),
-                    new NamedClass("http://www.benchmark.org/family#Female"));
+//            ClassExpression ce;
+//            ce = new Junction(true, new Junction(false,
+//                    new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#married", false,
+//                            new NamedClass("http://www.benchmark.org/family#Brother")),
+//                    new Junction(true,
+//                            new SimpleQuantifiedRole(true, "http://www.benchmark.org/family#hasSibling", false,
+//                                    new Junction(false, new NamedClass("http://www.benchmark.org/family#Mother"),
+//                                            new NamedClass("http://www.benchmark.org/family#Father"))),
+//                            new NamedClass("http://www.benchmark.org/family#Daughter"))),
+//                    new NamedClass("http://www.benchmark.org/family#Female"));
 
 //            new Junction(false,
 //                    new Junction(true, new NamedClass("http://www.benchmark.org/family#Son", true),
@@ -346,13 +349,13 @@ public class PruneCEL {
 //                                                    new NamedClass("http://www.w3.org/2004/02/skos/core#Concept"),
 //                                                    new NamedClass("http://dbpedia.org/ontology/Agent"))))));
 
-            LearningProblem prob = problems.iterator().next();
-            ScoreCalculator scoreCalculator = factory.create(prob.getPositiveExamples().size(),
-                    prob.getNegativeExamples().size());
-            RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator,
-                    prob.getPositiveExamples(), prob.getNegativeExamples());
-            Set<ScoredClassExpression> expressions = rho.refine(ce, System.currentTimeMillis() + 60000);
-            System.out.println(expressions.size());
+//            LearningProblem prob = problems.iterator().next();
+//            ScoreCalculator scoreCalculator = factory.create(prob.getPositiveExamples().size(),
+//                    prob.getNegativeExamples().size());
+//            RefinementOperator rho = new SuggestorBasedRefinementOperator(suggestor, logic, scoreCalculator,
+//                    prob.getPositiveExamples(), prob.getNegativeExamples());
+//            Set<ScoredClassExpression> expressions = rho.refine(ce, System.currentTimeMillis() + 60000);
+//            System.out.println(expressions.size());
 
 //            System.out.println(suggestor.suggestClass(prob.getPositiveExamples(), prob.getNegativeExamples(), ce));
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
@@ -360,7 +363,7 @@ public class PruneCEL {
 //            ce = (new NegatingVisitor()).negateExpression(ce);
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
             // DEBUG CODE END!!!
-
+            
             try (PrintStream pout = new PrintStream("results.txt")) {
 //                for (int i = 0; i < names.size(); ++i) {
                 for (LearningProblem problem : problems) {
