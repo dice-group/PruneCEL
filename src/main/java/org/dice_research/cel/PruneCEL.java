@@ -255,7 +255,7 @@ public class PruneCEL {
         factory = new AvoidingPickySolutionsDecorator.Factory(factory);
 
         boolean useCache = true;
-        boolean debugMode = true;
+        boolean debugMode = false;
         boolean skipNonImproving = true;
         boolean recursive = false;
 
@@ -299,7 +299,7 @@ public class PruneCEL {
 //                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/QALD10Train_Fold_0.json");
+            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/QALD9_plus_dbpediaTrain_Fold_7.json");
 
             // DEBUG CODE!!!
 //            ClassExpression ce;

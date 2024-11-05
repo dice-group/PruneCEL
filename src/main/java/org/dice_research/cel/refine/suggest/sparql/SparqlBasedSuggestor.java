@@ -1,8 +1,12 @@
 package org.dice_research.cel.refine.suggest.sparql;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -14,6 +18,7 @@ import org.aksw.jena_sparql_api.http.QueryExecutionFactoryHttp;
 import org.aksw.jenax.arq.connection.core.QueryExecutionFactory;
 import org.aksw.jenax.stmt.parser.query.SparqlQueryParser;
 import org.aksw.jenax.stmt.parser.query.SparqlQueryParserImpl;
+import org.apache.commons.io.FileUtils;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QuerySolution;
@@ -99,8 +104,16 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
             // Check whether there is a
             return results;
         } catch (Exception e) {
-            LOGGER.error("Exception while executing SPARQL request. query=" + data.suggestionQuery, e);
-            throw e;
+            LOGGER.error(
+                    "Exception while executing SPARQL request. Query is printed to 'error-query.txt'. Returning empty list.",
+                    e);
+            try {
+                FileUtils.writeStringToFile(new File("error-query.txt"), data.suggestionQuery.toString(),
+                        StandardCharsets.UTF_8);
+            } catch (IOException e1) {
+                LOGGER.error("Couldn't print SPARQL query to file. Query = " + data.suggestionQuery.toString(), e1);
+            }
+            return Collections.emptyList();
         }
     }
 
