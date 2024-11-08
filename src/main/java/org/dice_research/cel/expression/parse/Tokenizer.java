@@ -79,6 +79,7 @@ public class Tokenizer {
         switch (substring.charAt(0)) {
         case '(': // falls through
         case ')':
+        case '¬':
         case '∃':
         case '∀':
         case '⊔':
