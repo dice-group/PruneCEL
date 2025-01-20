@@ -16,8 +16,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class LengthBasedRefinementScorerTest {
 
-    public static final double PROPERTY_PENALTY = 0.01;
-    public static final double JUNCTION_PENALTY = 0.005;
+    public static final double LENGTH_PENALTY = 0.01;
 
     @Parameters
     public static List<Object[]> parameters() {
@@ -26,32 +25,32 @@ public class LengthBasedRefinementScorerTest {
         final NamedClass A = new NamedClass("A");
         final NamedClass B = new NamedClass("B");
         // A
-        testCases.add(new Object[] { 10, 20, 5, 10, A, 0.5 });
+        testCases.add(new Object[] { 10, 20, 5, 10, A, 0.5 - LENGTH_PENALTY });
         // A ⊓ B
-        testCases.add(new Object[] { 10, 20, 5, 10, new Junction(true, A, B), 0.5 - 2 * JUNCTION_PENALTY });
-        testCases.add(new Object[] { 10, 20, 5, 10, new Junction(false, A, B), 0.5 - 2 * JUNCTION_PENALTY });
+        testCases.add(new Object[] { 10, 20, 5, 10, new Junction(true, A, B), 0.5 - 3 * LENGTH_PENALTY });
+        testCases.add(new Object[] { 10, 20, 5, 10, new Junction(false, A, B), 0.5 - 3 * LENGTH_PENALTY });
         // ∃r.A
-        testCases.add(
-                new Object[] { 10, 20, 5, 10, new SimpleQuantifiedRole(true, "r", false, A), 0.5 - PROPERTY_PENALTY });
+        testCases.add(new Object[] { 10, 20, 5, 10, new SimpleQuantifiedRole(true, "r", false, A),
+                0.5 - 3 * LENGTH_PENALTY });
         // ∃r-.A
         testCases.add(
-                new Object[] { 10, 20, 5, 10, new SimpleQuantifiedRole(true, "r", true, A), 0.5 - PROPERTY_PENALTY });
+                new Object[] { 10, 20, 5, 10, new SimpleQuantifiedRole(true, "r", true, A), 0.5 - 3 * LENGTH_PENALTY });
         // ∃r.(A ⊓ B)
         testCases.add(new Object[] { 10, 20, 5, 10, new SimpleQuantifiedRole(true, "r", true, new Junction(true, A, B)),
-                0.5 - PROPERTY_PENALTY - 2 * JUNCTION_PENALTY });
+                0.5 - 5 * LENGTH_PENALTY });
         // ∃r.(A ⊓ B ⊓ ∃r.B)
         testCases.add(new Object[] { 10, 20, 5, 10,
                 new SimpleQuantifiedRole(true, "r", true,
                         new Junction(true, A, B, new SimpleQuantifiedRole(true, "r", true, B))),
-                0.5 - 2 * PROPERTY_PENALTY - 3 * JUNCTION_PENALTY });
+                0.5 - 8 * LENGTH_PENALTY });
         // (A ⊓ ∃r.B)
         testCases.add(new Object[] { 10, 20, 5, 10, new Junction(true, A, new SimpleQuantifiedRole(true, "r", true, B)),
-                0.5 - PROPERTY_PENALTY - 2 * JUNCTION_PENALTY });
+                0.5 - 5 * LENGTH_PENALTY });
         // ∃r1.∃r2.∃r3.A
         testCases.add(new Object[] { 10, 20, 5, 10,
                 new SimpleQuantifiedRole(true, "r1", false,
                         new SimpleQuantifiedRole(true, "r2", false, new SimpleQuantifiedRole(true, "r3", false, A))),
-                0.5 - 3 * PROPERTY_PENALTY });
+                0.5 - 7 * LENGTH_PENALTY });
 
         return testCases;
     }
@@ -81,7 +80,7 @@ public class LengthBasedRefinementScorerTest {
         Assert.assertTrue("Faulty test case. There are more negative selected than negative examples exist.",
                 numNegSelected <= numNegExamples);
         LengthBasedRefinementScorer calculator = new LengthBasedRefinementScorer(
-                new AccuracyCalculator(numPosExamples, numNegExamples), PROPERTY_PENALTY, JUNCTION_PENALTY);
+                new AccuracyCalculator(numPosExamples, numNegExamples), LENGTH_PENALTY);
         Assert.assertEquals(expected,
                 calculator.calculateRefinementScore(numPosSelected, numNegSelected,
                         calculator.calculateClassificationScore(numPosSelected, numNegSelected), classExpression),

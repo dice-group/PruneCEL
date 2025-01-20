@@ -10,6 +10,16 @@ import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.SimpleQuantifiedRole;
 
+/**
+ * 
+ * <b>WARNING</b>: This parser cannot parse {@code ∃r.A} correctly since the
+ * tokenizer has no chance to identify the dot as separator of the names (which
+ * could also be IRIs). Hence, it will be parser as a single role name
+ * {@code r.A}.
+ * 
+ * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
+ *
+ */
 public class CEParser {
 
     public ClassExpression parse(String expressionString) throws CEParserException {

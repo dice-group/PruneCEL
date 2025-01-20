@@ -34,6 +34,20 @@ public class CEParserTest {
         testCases.add(new Object[] { new SimpleQuantifiedRole(true, "http://example.org/r", false, NamedClass.TOP) });
         testCases.add(new Object[] { new SimpleQuantifiedRole(true, "http://example.org/r", true, NamedClass.TOP) });
 
+        // Exists r A
+        testCases.add(new Object[] { new SimpleQuantifiedRole(true, "r", false, new NamedClass("http://example.org/A", true)) });
+        testCases.add(new Object[] { new SimpleQuantifiedRole(true, "r", true, new NamedClass("http://example.org/A", true)) });
+        testCases.add(new Object[] {
+                new SimpleQuantifiedRole(true, "http://example.org/r", false, new NamedClass("http://example.org/A", true)) });
+        testCases.add(new Object[] {
+                new SimpleQuantifiedRole(true, "http://example.org/r", true, new NamedClass("http://example.org/A", true)) });
+        testCases.add(new Object[] { new SimpleQuantifiedRole(true, "r", false, new NamedClass("http://example.org/A", false)) });
+        testCases.add(new Object[] { new SimpleQuantifiedRole(true, "r", true, new NamedClass("http://example.org/A", false)) });
+        testCases.add(new Object[] {
+                new SimpleQuantifiedRole(true, "http://example.org/r", false, new NamedClass("http://example.org/A", false)) });
+        testCases.add(new Object[] {
+                new SimpleQuantifiedRole(true, "http://example.org/r", true, new NamedClass("http://example.org/A", false)) });
+
         // Forall r BOTTOM
         testCases.add(new Object[] { new SimpleQuantifiedRole(false, "r", false, NamedClass.BOTTOM) });
         testCases.add(new Object[] { new SimpleQuantifiedRole(false, "r", true, NamedClass.BOTTOM) });

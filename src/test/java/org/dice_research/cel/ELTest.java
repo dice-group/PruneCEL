@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -31,15 +30,18 @@ public class ELTest extends AbstractCELTest {
 
         Resource neg1 = ResourceFactory.createResource("http://example.org/neg1");
         Resource neg2 = ResourceFactory.createResource("http://example.org/neg2");
+        Resource[] individuals = new Resource[] { pos1, pos2, neg1, neg2 };
 
         Resource classA = ResourceFactory.createResource("http://example.org/classA");
         Resource classB = ResourceFactory.createResource("http://example.org/classB");
         Resource classC = ResourceFactory.createResource("http://example.org/classC");
+        Resource[] classes = new Resource[] { classA, classB, classC };
 
         Property role1 = ResourceFactory.createProperty("http://example.org/role1");
+        Resource[] roles = new Resource[] { role1 };
         // Basic example for a single named concept
         // A(pos1,pos2),
-        model = ModelFactory.createDefaultModel();
+        model = TestHelper.initModel(classes, roles, individuals);
         model.add(pos1, RDF.type, classA);
         model.add(pos2, RDF.type, classA);
         expected = new NamedClass(classA.getURI());
@@ -48,7 +50,7 @@ public class ELTest extends AbstractCELTest {
 
         // Basic example for concept conjunction
         // A(pos1, pos2, neg1), B(pos1, pos2, neg2)
-        model = ModelFactory.createDefaultModel();
+        model = TestHelper.initModel(classes, roles, individuals);
         model.add(pos1, RDF.type, classA);
         model.add(pos1, RDF.type, classB);
         model.add(pos2, RDF.type, classA);
@@ -61,7 +63,7 @@ public class ELTest extends AbstractCELTest {
 
         // Basic example for a (limited) existential quantifier
         // r(pos1,c), r(pos2,c)
-        model = ModelFactory.createDefaultModel();
+        model = TestHelper.initModel(classes, roles, individuals);
         model.add(pos1, role1, classC);
         model.add(pos2, role1, classC);
         expected = new SimpleQuantifiedRole(true, role1.getURI(), false, NamedClass.TOP);
