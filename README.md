@@ -7,9 +7,9 @@ This repository contains
 ## Table of Contents
 1. [Repository Structure](README.md#1-repository-structure)
 2. [Running Experiments](README.md#2-running-experiments)
-3. [Rerunning Experiment I](README.md#3-rerunning-experiment-i)
+3. [Ren Experiment I](README.md#3-run-experiment-i)
 4. [Knowledge Base Details](README.md#4-knowledge-base-details)
-5. [Rerunning Experiment II](README.md#5-rerunning-experiment-ii)
+5. [Run Experiment II](README.md#5-run-experiment-ii)
 6. [Details Experiment III](README.md#6-details-experiment-iii)
 7. [FAQ](README.md#7-faq)
 
@@ -47,11 +47,11 @@ The result of the compilation and packaging process is available as `target/prun
 mv target/prune-cel-0.0.1-SNAPSHOT.jar prune-cel.jar
 ```
 
-## 3. Rerunning Experiment I
+## 3. Run Experiment I
 
 Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
-For running 
+For running TODO add command to run PruneCEL
 
 ## 4. Knowledge Base Details
 
@@ -68,25 +68,35 @@ TODO what are global standards here?
 
 We preprocessed Wikidata by replacing the property `http://www.wikidata.org/prop/direct/P31` with `http://www.w3.org/1999/02/22-rdf\textbackslash-syntax-ns\#type`.
 
+TODO is there any other preprocessing needed?
+
 ## Knowledge Base Structure
+
+In the first step of our benchmarking framework, we generate a knowledge graph comprising information from the dataset used during the benchmarking process. Our work relies on the QALD datasets, which include three types of data for each question:
+1. **Natural language question.** Each question comes with a representation in several languages. From the English question, we extract linguistic features such as \begin{itemize}
+   * The length of the question, 
+   * The presence of negation, 
+   * The question word, and 
+   * The NLP parse tree. We employ the Stanford NLP toolkit for the extraction.
+3. **Answer(s).** Each question comes with the ground truth answers. We add these answers to the generated graph with three different properties distinguishing IRI, boolean and other literal answers.
+    For each IRI listed as answer, we add its concise bounded description (CBD) extracted from the reference knowledge graph.
+4. **SPARQL query.** Each question has a SPARQL query that returns the ground truth answer when used on the reference knowledge graph. We adopt LSQ to add the following SPARQL query features to our knowledge graph:
+   * Entities and properties contained in the query (including the CBD of the entities),
+   * Type of query,
+   * The number of triple patterns,
+   * The number of basic graph patterns, 
+   * The average degree of vertices, 
+   * The median degree of vertices involved in join operations,
+   * The minimum, maximum, and median number of triple patterns in a basic graph pattern, and
+   * The presence of certain keywords such as `FILTER`, `DISTINCT`, and `GROUP BY`.
+
+The following figure shows an example question (Question 1 from QALD10) and the data that we collected for such a question.
 
 ![example_KG](Doc/Pic/example_KG.png)
 
-The figure above shows an example question (Question 1 from QALD10) and the data that we collected for such a question.
+Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. The questions can have different answer types, represented by different properties: `dqb:hasIRIAnswer`, `dqb:hasLiteralAnswer`, and `dqb:hasBooleanAnswer`. 
 
-
-  In **QALD10**, each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number.
-
-  Each question has different answer types, represented by properties: `dqb:hasIRIAnswer`, `dqb:hasLiteralAnswer`, and `dqb:hasBooleanAnswer`.
-
-  For questions that have IRI answers, the CBD of the corresponding IRI is extracted from **WKRF**.
-
-  We employ the Stanford NLP toolkit to process each question in English. Key linguistic features are extracted, including the length of the question, the presence of negation, the question word, and the parse tree. Each word in the question is represented using its positional information, for example: `dqq:Q1\_Tree\_T2` denotes the second word in the question, which in this case is `animal`.
-
-  For each question's SPARQL query, we also extract relevant features, including the entities and properties contain within the query itself. The CBD of the entities identified in the SPARQL query is also integrated by using **WKRF**.
-
-
-## 5. Rerunning Experiment II
+## 5. Run Experiment II
 
 ## 6. Details Experiment III
 
