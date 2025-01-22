@@ -15,6 +15,20 @@ The following directories and files can be found within this project:
 +-pom.xml:      File necessary to compile PruneCEL with Maven
 ```
 
+## Running Experiments
+
+PruneCEL uses SPARQL queries to retrieve data from the underlying knowledge base. 
+For our experiments, we used the triple store [Tentris](https://github.com/dice-group/Tentris). However, the experiments can be run with any other triple store (e.g., [Fuseki](https://jena.apache.org/documentation/fuseki2/)).
+However, using a different triple store can lead to different results since PruneCEL moves a large amount of the work to the triple store, serving as oracle.
+
+For our experiments, we relied on the implementations of the approaches CELOE, Drill, EvoLearner and NCES on the [Ontolearn](https://github.com/dice-group/ontolearn) project. During our experiments, CELOE and DRILL were used in the same way, i.e., we provided the address of the SPARQL endpoint and both approaches used SPARQL query to retrieve the necessary data. However, the implementations of EvoLearner and NCES do not seem to support this feature at the moment and both have to load the data into memory before they start. Note that we did not take this loading time into consideration when measuring the runtime of these approaches.
+
+## Experiment I
+
+Thankfully, the [Ontolearn project](https://github.com/dice-group/ontolearn) provides examples how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
+
+For running 
+
 # Details of knowledge graph generation
 
 ## Reference knowledge graph details:
