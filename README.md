@@ -8,9 +8,10 @@ This repository contains
 1. [Repository Structure](README.md#1-repository-structure)
 2. [Running Experiments](README.md#2-running-experiments)
 3. [Rerunning Experiment I](README.md#3-rerunning-experiment-i)
-4. [Rerunning Experiment II](README.md#4-rerunning-experiment-ii)
-5. [Details Experiment III](README.md#5-details-experiment-iii)
-6. [FAQ](README.md#6-faq)
+4. [Knowledge Base Details](README.md#4-knowledge-base-details)
+5. [Rerunning Experiment II](README.md#5-rerunning-experiment-ii)
+6. [Details Experiment III](README.md#6-details-experiment-iii)
+7. [FAQ](README.md#7-faq)
 
 ## 1. Repository Structure
 The following directories and files can be found within this project:
@@ -48,53 +49,31 @@ mv target/prune-cel-0.0.1-SNAPSHOT.jar prune-cel.jar
 
 ## 3. Rerunning Experiment I
 
-Thankfully, the [Ontolearn project](https://github.com/dice-group/ontolearn) provides examples how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
+Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
 For running 
 
-## 4. Rerunning Experiment II
+## 4. Knowledge Base Details
 
-## 5. Details Experiment III
+In this section, we want to give some more details about the knowledge bases that we created for the 3 QA benchmarks ([QALD 9 plus](https://github.com/KGQA/QALD_9_plus) DBpedia, QALD 9 plus Wikidata and [QALD 10](https://github.com/KGQA/QALD-10/)) and the two reference knowledge graphs ([DBpedia](https://downloads.dbpedia.org/2016-10/core-i18n/en/) and [Wikidata](https://zenodo.org/records/7496690)).
 
+### Preprocessing
 
-# Details of knowledge graph generation
+We remove all questions from the three QA datasets that have an empty ground truth answer set.
 
-## Reference knowledge graph details:
+We preprocessed the DBpedia reference graph by removing $43,618$ triples with IRIs that do not conform to global standards. We also removed properties of the `http://dbpedia.org/property/` namespace. 
+Additionally, we inferred the classes of all entities based on the class hierarchy.
 
+TODO what are global standards here?
 
-We build the knowledge graph QALD9+WD, QALD9+DB, and QALD10. 
+We preprocessed Wikidata by replacing the property `http://www.wikidata.org/prop/direct/P31` with `http://www.w3.org/1999/02/22-rdf\textbackslash-syntax-ns\#type`.
 
-The Wikidata reference knowledge graph(WKRF) we utilize for both QALD9+WD and QALD10 are available online: 
-- **WKRF** &rarr; (https://zenodo.org/records/7496690). 
-  
-The DBpedia reference knowledge graph(DBRF) we utilize to build QALD9+DB can be found here: 
-- **DBRF** &rarr; (https://downloads.dbpedia.org/2016-10/core-i18n/en/).
+## Knowledge Base Structure
 
+![example_KG](Doc/Pic/example_KG.png)
 
-## Preprocessing details:
-We apply preprocessing on both **WKRF** and **DBRF**. 
+The figure above shows an example question (Question 1 from QALD10) and the data that we collected for such a question.
 
-For **WKRF**, 
-- All occurrences of the property `http://www.wikidata.org/prop/direct/P31` are replaced with `http://www.w3.org/1999/02/22-rdf\textbackslash-syntax-ns\#type`. 
-
-For **DBRF**, 
-- $43,618$ triples with IRIs that do not conform to global standards are removed, along with those having properties with the dbp prefix `http://dbpedia.org/property/`. Additionally, for entities belonging to a specific class, the entity type corresponding to all superclasses of that class is also added.
-
-## Knowledge graph question details:
-
-We build the knowledge graph for each dataset. 
-
-  For **QALD10**, the knowledge graph comprises $394$ questions and the associated features. 
-
-  For **QALD9+WK**, the dataset contains $136$ questions, however, only $116$ questions can be answered using the SPARQL queries provided by the gold standard answers, and only the answerable questions are used. 
-
-  For **QALD9+DB**, the dataset contains $150$ questions, only $133$ are utilized for the same reason as above.
-
-
-## Knowledge graph structure details:
-
-![Ontolearn](Doc/Pic/example_KG.png)
-See figure 1, We utilize `Question 1` from the **QALD10** to demonstrate the methodology:
 
   In **QALD10**, each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number.
 
@@ -106,7 +85,12 @@ See figure 1, We utilize `Question 1` from the **QALD10** to demonstrate the met
 
   For each question's SPARQL query, we also extract relevant features, including the entities and properties contain within the query itself. The CBD of the entities identified in the SPARQL query is also integrated by using **WKRF**.
 
-## 6. FAQ
+
+## 5. Rerunning Experiment II
+
+## 6. Details Experiment III
+
+## 7. FAQ
 
 ### Question about PruneCEL
 
