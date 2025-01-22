@@ -16,12 +16,13 @@ This repository contains
 ## 1. Repository Structure
 The following directories and files can be found within this project:
 ```
-+-Doc/Pic:      Pictures used in this README
-+-Script_F_C_M: The scripts that we used to run PruneCEL in Experiment I
-+-Script_QALD:  The scripts that we used to run PruneCEL in Experiment II
-+-T_F_Json:     The learning problems of Experiment I and II
-+-src:          The Java source code of PruneCEL
-+-pom.xml:      File necessary to compile PruneCEL with Maven
++-Doc/Pic:                   Pictures used in this README
++-Script_F_C_M:              The scripts that we used to run PruneCEL in Experiment I
++-Script_QALD:               The scripts that we used to run PruneCEL in Experiment II
++-T_F_Json:                  The learning problems of Experiment I and II
++-Experiment_III_Survey.pdf: Details of the survey in Experiment III
++-src:                       The Java source code of PruneCEL
++-pom.xml:                   File necessary to compile PruneCEL with Maven
 ```
 
 TODO add survey details!
@@ -100,8 +101,98 @@ Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes t
 
 ## 6. Details Experiment III
 
-## 7. FAQ
+First, we chose two concepts learned on the QALD10 and QALD9+DB. We decided to use the concept learned for the learning problem for which PruneCEL had the largest difference to the baseline approach (which would be the top concept). We verbalized these two concepts using ChatGPT.
+After that, we used the verbalizations to conduct a survey as described in our paper.
 
+### Verbalization
+
+#### QALD 10 MST5
+
+The following concept has been learned by PruneCEL:
+```
+∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(
+    http://www.wikidata.org/entity/Q482994
+    ⊔
+    ∃http://www.wikidata.org/prop/direct/P7763.⊤
+    ⊔
+    http://www.wikidata.org/entity/Q28640
+    ⊔
+    ∃http://www.wikidata.org/prop/direct/P131.¬http://www.wikidata.org/entity/Q6256
+    ⊔
+    ∃http://www.wikidata.org/prop/direct/P1557.⊤
+  )
+⊔
+∃http://w3id.org/dice-research/qa-bench#hasBooleanAnswer.⊤
+```
+We replaced all IRIs with their English labels and created the following prompt for ChatGPT:
+```
+A question answering system "QAS1" is able to answer questions that fulfill the following DL expression:
+(∃has entity answer.(album⊔∃copyright status as a creator.⊤⊔profession⊔∃located in the administrative territorial entity.¬country⊔∃manifestation of.⊤)⊔∃has boolean answer.⊤)
+Explain that in simple words. Keep your answer short.
+```
+Verbalization:
+```
+The system "QAS1" can answer questions if:
+
+1. There’s an answer involving an *album*, a *creator's copyright status*, a *profession*, a location that’s *not a country*, or something that has a *type or form*.
+2. Or, it can answer questions that have a simple *yes/no (boolean) answer*.
+```
+
+#### QALD9+DB MST5
+
+The following concept has been learned by PruneCEL:
+```
+(
+  ∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(
+    (
+      ¬http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#Agent
+      ⊓
+      ∃http://dbpedia.org/ontology/parentMountainPeak.⊤
+    )
+    ⊔
+    http://www.wikidata.org/entity/Q41176
+  )
+  ⊔
+  (
+    ∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(
+      http://dbpedia.org/ontology/Astronaut
+      ⊔
+      (
+        ¬http://www.wikidata.org/entity/Q24229398
+        ⊓
+        ¬http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing
+      )
+    )
+    ⊓
+    ∃http://w3id.org/dice-research/qa-bench#hasQuestionWord.⊤
+  )
+)
+```
+We replaced all IRIs with their English labels and created the following prompt for ChatGPT:
+```
+A question answering system "QAS2" is able to answer questions that fulfill the following DL expression:
+(∃http://w3id.org/dice-research/qa-bench#has entity answer.((¬agent⊓∃parent mountain peak.⊤)⊔building)⊔(∃has entity answer.(astronaut⊔(¬agent⊓¬spatial thing))⊓∃has question word.⊤))
+Explain that in simple words. Keep your answer short.
+```
+Verbalization:
+```
+The system "QAS2" can answer questions if:
+
+1. The answer involves either:
+   - A *non-agent* (not a person or entity with intent) with a *parent mountain peak*, or
+   - A *building*.
+2. Or, if the answer involves:
+   - An *astronaut*, or
+   - A *non-agent, non-spatial entity* (something that’s neither a person nor a physical location),
+   - And if the question includes a question word (like "who," "what," or "where").
+```
+
+### Survey
+
+The survey and the detailed results can be found in the file `Experiment_III_Survey.pdf` within this repository.
+
+## 7. FAQ
+TODO Check the relevancy of the questions
 ### Question about PruneCEL
 
 1, Where can I get the knowledge graph?
