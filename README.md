@@ -4,7 +4,14 @@ This repository contains
 * Links and descriptions to rerun Experiments I and II
 * The survey and its results of Experiment III
 
-## Repository Structure
+## Table of Contents
+1. [Repository Structure](README.md#1.-repository-structure)
+2. [Running Experiments](README.md#2.-running-experiments)
+3. [Rerunning Experiment I](README.md#3.-rerunning-experiment-i)
+4. [Rerunning Experiment II](README.md#4.-rerunning-experiment-ii)
+5. [FAQ](README.md#5.-faq)
+
+## 1. Repository Structure
 The following directories and files can be found within this project:
 ```
 +-Doc/Pic:      Pictures used in this README
@@ -15,7 +22,9 @@ The following directories and files can be found within this project:
 +-pom.xml:      File necessary to compile PruneCEL with Maven
 ```
 
-## Running Experiments
+TODO add survey details!
+
+## 2. Running Experiments
 
 PruneCEL uses SPARQL queries to retrieve data from the underlying knowledge base. 
 For our experiments, we used the triple store [Tentris](https://github.com/dice-group/Tentris). However, the experiments can be run with any other triple store (e.g., [Fuseki](https://jena.apache.org/documentation/fuseki2/)).
@@ -23,11 +32,14 @@ However, using a different triple store can lead to different results since Prun
 
 For our experiments, we relied on the implementations of the approaches CELOE, Drill, EvoLearner and NCES on the [Ontolearn](https://github.com/dice-group/ontolearn) project. During our experiments, CELOE and DRILL were used in the same way, i.e., we provided the address of the SPARQL endpoint and both approaches used SPARQL query to retrieve the necessary data. However, the implementations of EvoLearner and NCES do not seem to support this feature at the moment and both have to load the data into memory before they start. Note that we did not take this loading time into consideration when measuring the runtime of these approaches.
 
-## Experiment I
+## 3. Rerunning Experiment I
 
 Thankfully, the [Ontolearn project](https://github.com/dice-group/ontolearn) provides examples how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
 For running 
+
+## 4. Rerunning Experiment II
+
 
 # Details of knowledge graph generation
 
@@ -78,9 +90,9 @@ See figure 1, We utilize `Question 1` from the **QALD10** to demonstrate the met
 
   For each question's SPARQL query, we also extract relevant features, including the entities and properties contain within the query itself. The CBD of the entities identified in the SPARQL query is also integrated by using **WKRF**.
 
-# Common question
+## 5. FAQ
 
-## Question about PruneCEL
+### Question about PruneCEL
 
 1, Where can I get the knowledge graph?
 
@@ -99,7 +111,7 @@ See figure 1, We utilize `Question 1` from the **QALD10** to demonstrate the met
 
     `/T_F_JSON`
 
-## Question about Drill, CELOE
+### Question about Drill, CELOE
 
 1, Where can I get the embedding and pretrained model for drill?
 
