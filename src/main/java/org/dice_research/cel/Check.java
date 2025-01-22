@@ -19,16 +19,16 @@ public class Check {
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9080/sparql";
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
 
-//        String questions[] = new String[] { "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q10",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q111",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q113",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q150",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q231",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q85",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q32",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q2",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q94",
-//                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q38" };
+        String questions[] = new String[] { "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q23",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q86",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q42",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q119",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q164",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q174",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q108",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q166",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q120",
+                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q104" };
 //        String questions[] = new String[] {
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q163",
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q198",
@@ -40,30 +40,30 @@ public class Check {
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q103",
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q26",
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q68" };
-        String questions[] = new String[] {
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q122",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q29",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q141",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q135",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q132",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q32",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q156",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q203",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q111",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q149",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q115",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q190",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q201",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q148",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q143",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q157",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q175",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q145",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q14",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q59" };
+//        String questions[] = new String[] {
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q122",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q29",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q141",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q135",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q132",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q32",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q156",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q203",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q111",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q149",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q115",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q190",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q201",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q148",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q143",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q157",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q175",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q145",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q14",
+//                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q59" };
 
         ClassExpression ce = (new CEParser()).parse(
-                "∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.((¬http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#Agent⊓∃http://dbpedia.org/ontology/parentMountainPeak.⊤)⊔http://www.wikidata.org/entity/Q41176)⊔(∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(http://dbpedia.org/ontology/Astronaut⊔(¬http://www.wikidata.org/entity/Q24229398⊓¬http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing))⊓∃http://w3id.org/dice-research/qa-bench#hasQuestionWord.⊤)");
+                "∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(∃http://dbpedia.org/ontology/foundedBy.⊤⊔http://schema.org/Mountain⊔(¬http://dbpedia.org/ontology/Person⊓¬http://www.wikidata.org/entity/Q24229398⊓http://dbpedia.org/ontology/PopulatedPlace)⊔(∃http://dbpedia.org/ontology/deathPlace.⊤⊓http://dbpedia.org/ontology/Astronaut)⊔http://dbpedia.org/ontology/FloweringPlant⊔http://dbpedia.org/ontology/Work)");
 //        ClassExpression ce = (new CEParser()).parse(
 //                "(∃http://w3id.org/dice-research/qa-bench#hasQuery.∀http://w3id.org/dice-research/qa-bench#hasEntity.∃http://dbpedia.org/ontology/thumbnail.⊤⊓(∃http://w3id.org/dice-research/qa-bench#hasLiteralAnswer.⊤⊔∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(http://dbpedia.org/ontology/Building⊔(∃http://www.w3.org/2000/01/rdf-schema#seeAlso.⊤⊓http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#NaturalPerson))))");
 //        ClassExpression ce = (new CEParser()).parse(

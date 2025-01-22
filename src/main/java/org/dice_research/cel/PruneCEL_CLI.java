@@ -143,7 +143,7 @@ public class PruneCEL_CLI {
 //        // "http://dice-quan.cs.uni-paderborn.de:9070/sparql"   QALD9-plus-wikidata
 //        // "http://dice-quan.cs.uni-paderborn.de:9050/sparql"   QALD9-plus-dbpedia-without dbp
 //
-//        String[] combination = {"112"};
+//        String[] combination = {"100"};
 //        for (String result : combination) {
 //            // Now loop through each possible value of the last digit (0, 1, 2)
 //
@@ -163,8 +163,8 @@ public class PruneCEL_CLI {
 //                accuracyfunction = 2;
 //            }
 //            ;
-//
-//            // ++++++++++Carcinogenesis++++++++++ //
+
+            // ++++++++++Carcinogenesis++++++++++ //
 //            try {
 //                runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9020/sparql", "ALC", accuracyfunction, true, true, 0, 60000,
 //                    Recursive, SetSkipNone, "./././././T_F_Json/Carcinogenesis/lps.json",
@@ -175,7 +175,7 @@ public class PruneCEL_CLI {
 //                e.printStackTrace();
 //            }
 //
-//            // ++++++++++Mutagenesis++++++++++ //
+            // ++++++++++Mutagenesis++++++++++ //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9030/sparql", "ALC", accuracyfunction, true, true, 0, 60000,
 //                Recursive, SetSkipNone, "./././././T_F_Json/Mutagenesis/lps.json",
@@ -186,14 +186,7 @@ public class PruneCEL_CLI {
 //                e.printStackTrace();
 //            }
 //
-//             Test //
-//            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9010/sparql", "ALC", accuracyfunction, true, true, 0, 60000,
-//                Recursive, SetSkipNone, "/local/upb/users/q/quannian/profiles/unix/cs/Java_Project/local/upb/users/q/quannian/profiles/unix/cs/Java_Project/Fold/Family/Training/AuntTrain_Fold_2.json",
-//                "./././././Fold/Family/Result/Test" + result + ".csv", false,1,"Fold/Family");
-//
-//
-//
-//             ++++++++++Family++++++++++ //
+            //++++++++++Family++++++++++ //
 //            try {
 //                runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9010/sparql", "ALC", accuracyfunction, true, true, 0, 60000,
 //               Recursive, SetSkipNone, "./././././T_F_Json/Family/lps.json",
@@ -206,7 +199,7 @@ public class PruneCEL_CLI {
 //
 //
 //             ++++++++++QALD10++++++++++ //
-//            // MST5 //
+            // MST5 //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9080/sparql", "ALC", 2, true, true, 0, 600000,
 //                true, true, "./././././T_F_Json/QALD10/TandF_MST5.json",
@@ -216,7 +209,7 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD10 MST5" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//            // Deeppavlov //
+            // Deeppavlov //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9080/sparql", "ALC", 2, true, true, 0, 600000,
 //                true, true, "./././././T_F_Json/QALD10/TandF_deeppavlov.json",
@@ -226,17 +219,19 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD10 Deeppavlov" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//            // MST5_Reverse //
+            // MST5_Reverse //
 //            try {
-//            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9080/sparql", "ALC", 2, true, true, 0, 600000,
-//                true, true, "./././././T_F_Json/QALD10/TandF_MST5_reverse.json",
-//                "./././././Fold/QALD10/Result/QALD10_MST5_Reverse" + "112" + ".csv", false,10,"Fold/QALD10_MST5_Reverse");
+//            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9080/sparql", "ALC", accuracyfunction,
+//                true, true, 0, 600000,
+//                Recursive, SetSkipNone, "./././././T_F_Json/QALD10/TandF_MST5_reverse.json",
+//                "./././././Fold/QALD10/Result/QALD10_MST5_Reverse" + result + ".csv", false,
+//                10,"Fold/QALD10_MST5_Reverse");
 //            }
 //            catch (IOException e) {
 //                System.err.println("QALD10 MST5 Reverse" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//            // Deeppavolv_Reverse //
+            // Deeppavolv_Reverse //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9080/sparql", "ALC", 2, true, true, 0, 600000,
 //                true, true, "./././././T_F_Json/QALD10/TandF_deeppavlov_reverse.json",
@@ -246,9 +241,7 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD10 Deeppavlov Reverse" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//
-//
-//            // ++++++++++QALD9P_DBPEDIA++++++++++ //
+            // ++++++++++QALD9P_DBPEDIA++++++++++ //
 //            // MST5 //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
@@ -260,7 +253,7 @@ public class PruneCEL_CLI {
 //                e.printStackTrace();
 //            }
 //
-//            // Ganswer //
+            // Ganswer //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
 //                Recursive, SetSkipNone, "./././././T_F_Json/QALD9_plus_dbpedia/TandF_ganswer.json",
@@ -270,7 +263,7 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD9P_DBPEDIA Ganswer" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//            // Tebaqa //
+            // Tebaqa //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
 //                Recursive, SetSkipNone, "./././././T_F_Json/QALD9_plus_dbpedia/TandF_tebaqa.json",
@@ -280,6 +273,10 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD9P_DBPEDIA Tebaqa" + e.getMessage());
 //                e.printStackTrace();
 //            }
+            // Test //
+//            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
+//                Recursive, SetSkipNone, "/upb/users/q/quannian/profiles/unix/cs/Java_Project/local/upb/users/q/quannian/profiles/unix/cs/Java_Project/Fold/QALD10_MST5_Reverse/Training/QALD10Train_Fold_0.json",
+//                "./././././Fold/QALD9_plus_dbpedia/Result/Test" + result + ".csv", false,1,"Fold/QALD9_plus_dbpedia_MST5_Reverse");
 //            // MST5_Reverse //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
@@ -290,7 +287,7 @@ public class PruneCEL_CLI {
 //                System.err.println("QALD9P_DBPEDIA MST5 Reverse" + e.getMessage());
 //                e.printStackTrace();
 //            }
-//            // Ganswer_Reverse //
+            // Ganswer_Reverse //
 //            try {
 //            runPruneCEL("http://dice-quan.cs.uni-paderborn.de:9050/sparql", "ALC", accuracyfunction, true, true, 0, 600000,
 //                Recursive, SetSkipNone, "./././././T_F_Json/QALD9_plus_dbpedia/TandF_ganswer_reverse.json",
@@ -308,8 +305,7 @@ public class PruneCEL_CLI {
 //            }
 //            catch (IOException e) {
 //                System.err.println("QALD9P_DBPEDIA Tebaqa Reverse" + e.getMessage());
-//                e.printStackTrace();
-//            }
+//                e.printStackTrace();}
 //        }
 //        System.exit(0);
 //    }
@@ -528,6 +524,7 @@ public class PruneCEL_CLI {
                         }
 
                         if (folds != 1) {
+                            pout.println("TESTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT");
                             Collection<LearningProblem> allproblems = reader
                                 .readProblems(testfileName);
                             for (LearningProblem problem : allproblems) {
