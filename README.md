@@ -5,11 +5,12 @@ This repository contains
 * The survey and its results of Experiment III
 
 ## Table of Contents
-1. [Repository Structure](README.md#1.-repository-structure)
-2. [Running Experiments](README.md#2.-running-experiments)
-3. [Rerunning Experiment I](README.md#3.-rerunning-experiment-i)
-4. [Rerunning Experiment II](README.md#4.-rerunning-experiment-ii)
-5. [FAQ](README.md#5.-faq)
+1. [Repository Structure](README.md#1-repository-structure)
+2. [Running Experiments](README.md#2-running-experiments)
+3. [Rerunning Experiment I](README.md#3-rerunning-experiment-i)
+4. [Rerunning Experiment II](README.md#4-rerunning-experiment-ii)
+5. [Details Experiment III](README.md#5-details-experiment-iii)
+6. [FAQ](README.md#6-faq)
 
 ## 1. Repository Structure
 The following directories and files can be found within this project:
@@ -39,6 +40,8 @@ Thankfully, the [Ontolearn project](https://github.com/dice-group/ontolearn) pro
 For running 
 
 ## 4. Rerunning Experiment II
+
+## 5. Details Experiment III
 
 
 # Details of knowledge graph generation
@@ -90,7 +93,7 @@ See figure 1, We utilize `Question 1` from the **QALD10** to demonstrate the met
 
   For each question's SPARQL query, we also extract relevant features, including the entities and properties contain within the query itself. The CBD of the entities identified in the SPARQL query is also integrated by using **WKRF**.
 
-## 5. FAQ
+## 6. FAQ
 
 ### Question about PruneCEL
 
