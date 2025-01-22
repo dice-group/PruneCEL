@@ -27,11 +27,24 @@ TODO add survey details!
 
 ## 2. Running Experiments
 
+### Experiment Setup
+
 PruneCEL uses SPARQL queries to retrieve data from the underlying knowledge base. 
 For our experiments, we used the triple store [Tentris](https://github.com/dice-group/Tentris). However, the experiments can be run with any other triple store (e.g., [Fuseki](https://jena.apache.org/documentation/fuseki2/)).
 However, using a different triple store can lead to different results since PruneCEL moves a large amount of the work to the triple store, serving as oracle.
 
-For our experiments, we relied on the implementations of the approaches CELOE, Drill, EvoLearner and NCES on the [Ontolearn](https://github.com/dice-group/ontolearn) project. During our experiments, CELOE and DRILL were used in the same way, i.e., we provided the address of the SPARQL endpoint and both approaches used SPARQL query to retrieve the necessary data. However, the implementations of EvoLearner and NCES do not seem to support this feature at the moment and both have to load the data into memory before they start. Note that we did not take this loading time into consideration when measuring the runtime of these approaches.
+For our experiments, we relied on the implementations of the approaches CELOE, Drill, EvoLearner and NCES from the [Ontolearn](https://github.com/dice-group/ontolearn) project. We refer to this project with respect to the execution of these approaches. During our experiments, CELOE and DRILL were set up in a similar way as PruneCEL, i.e., we provided the address of the SPARQL endpoint and both approaches used SPARQL queries to retrieve the necessary data. However, the implementations of EvoLearner and NCES do not seem to support this feature at the moment and both have to load the data into memory before they start. Note that we did not take this loading time into consideration when measuring the runtime of these approaches.
+
+### Compiling PruneCEL
+
+PruneCEL is a Maven project and after downloading this repository, PruneCEL can be compiled using the following command:
+```sh
+mvn clean package
+```
+The result of the compilation and packaging process is available as `target/prune-cel-0.0.1-SNAPSHOT.jar`. In the following, we will name this jar file just `prune-cel.jar`, so you may want to move it using 
+```sh
+mv target/prune-cel-0.0.1-SNAPSHOT.jar prune-cel.jar
+```
 
 ## 3. Rerunning Experiment I
 
