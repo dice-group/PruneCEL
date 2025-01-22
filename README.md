@@ -1,3 +1,20 @@
+# Explainable Benchmarking through the Lense of Concept Learning
+This repository contains 
+* The source code of our concept learning approach PruneCEL
+* Links and descriptions to rerun Experiments I and II
+* The survey and its results of Experiment III
+
+## Repository Structure
+The following directories and files can be found within this project:
+```
++-Doc/Pic:      Pictures used in this README
++-Script_F_C_M: The scripts that we used to run PruneCEL in Experiment I
++-Script_QALD:  The scripts that we used to run PruneCEL in Experiment II
++-T_F_Json:     The learning problems of Experiment I and II
++-src:          The Java source code of PruneCEL
++-pom.xml:      File necessary to compile PruneCEL with Maven
+```
+
 # Details of knowledge graph generation
 
 ## Reference knowledge graph details:
