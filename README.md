@@ -47,12 +47,13 @@ The result of the compilation and packaging process is available as `target/prun
 
 Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
-To run experiment I on PruneCEL, First, Load the knowledge graph using triple store, to download knowledge graphs:
+To run Experiment I on PruneCEL, we first have to load the knowledge base that we want to use into the triple store. The knowledge bases for Experiment I can be download as follows:
 ```shell
 wget https://files.dice-research.org/projects/Ontolearn/KGs.zip -O ./KGs.zip && unzip KGs.zip
 ```
+The file contains the three knowledge bases of the first experiment. The knowledge base that you want to use has to be loaded into a triple store.
 
-Second, run script in /**Script_F_C_M**, here is an example script:
+After that, the script in the `Script_F_C_M` directory can be used to execute PruneCEL. Within the script, you will see the following command:
 ```shell
 java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
 --sparqlUrl http://localhost:9020/sparql \
@@ -70,21 +71,15 @@ java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI 
 --folds 1 \
 --foldTrainTestSavePath Fold/Mutagenesis
 ```
+The command has to be adapted as follows:
+* `sparqlUrl` has to be changed to to your own SPARQL endpoint containing the knowledge base
+* `accuracyfunction` to 0, 1 or 2, where 0 is F1, 1 is Balance Accuracy, 2 is Accuracy;
+* `recursive` can be set to true or false, controlling the -R extension;
+* `skipNone` can be set to true or false, controlling the -S extension;
+* `intputFile` has to point to the JSON file containing the learning problems. The JSON files can be found in the `T_F_Json` directory
+* `outputFile` defines a path where the results will be stored.
 
-Change sparqlUrl to your own sparql endpoint;
-
-Change accuracyfunction to 0 or 1 or 2, where 0 is F1, 1 is Balance Accuracy, 2 is Accuracy;
-
-Change recursive to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-R;
-
-Change skipNone to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-S;
-
-Change intputFile to .Json file in **T_F_Json**;
-
-Change outputFile to the place you want to save your results;
-
-Leave the rest settings along!
-
+The other settings should be left as they are.
 
 ## 4. Knowledge Base Details
 
