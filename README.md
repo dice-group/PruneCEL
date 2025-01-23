@@ -47,7 +47,44 @@ The result of the compilation and packaging process is available as `target/prun
 
 Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
-For running TODO add command to run PruneCEL
+To run experiment I on PruneCEL, First, Load the knowledge graph using triple store, to download knowledge graphs:
+```shell
+wget https://files.dice-research.org/projects/Ontolearn/KGs.zip -O ./KGs.zip && unzip KGs.zip
+```
+
+Second, run script in /**Script_F_C_M**, here is an example script:
+```shell
+java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
+--sparqlUrl http://localhost:9020/sparql \
+--ontology ALC \
+--accuracyfunction 0 \
+--punishLongExpression true \
+--avoidPickySolutionsDecorator true \
+--iteration 0 \
+--time 60000 \
+--recursive true \
+--skipNone true \
+--inputFile ./././././T_F_Json/Carcinogenesis/lps.json \
+--outputFile ./././././Results/Carcinogenesis/Carcinogenesis110.csv \
+--cluster false \
+--folds 1 \
+--foldTrainTestSavePath Fold/Mutagenesis
+```
+
+Change sparqlUrl to your own sparql endpoint;
+
+Change accuracyfunction to 0 or 1 or 2, where 0 is F1, 1 is Balance Accuracy, 2 is Accuracy;
+
+Change recursive to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-R;
+
+Change skipNone to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-S;
+
+Change intputFile to .Json file in **T_F_Json**;
+
+Change outputFile to the place you want to save your results;
+
+Leave the rest settings along!
+
 
 ## 4. Knowledge Base Details
 
@@ -60,11 +97,9 @@ We remove all questions from the three QA datasets that have an empty ground tru
 We preprocessed the DBpedia reference graph by removing $43,618$ triples with IRIs that do not pass through the RDF checker. We also removed properties of the `http://dbpedia.org/property/` namespace. 
 Additionally, we inferred the classes of all entities based on the class hierarchy.
 
-TODO what are global standards here?
 
 We preprocessed Wikidata by replacing the property `http://www.wikidata.org/prop/direct/P31` with `http://www.w3.org/1999/02/22-rdf\textbackslash-syntax-ns\#type`.
 
-TODO is there any other preprocessing needed?  NO
 
 ## Knowledge Base Structure
 
@@ -93,6 +128,68 @@ The following figure shows an example question (Question 1 from QALD10) and the 
 Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. The questions can have different answer types, represented by different properties: `dqb:hasIRIAnswer`, `dqb:hasLiteralAnswer`, and `dqb:hasBooleanAnswer`. 
 
 ## 5. Run Experiment II
+### PruneCEL
+First, Load the knowledge graph using triple store, to find knowledge graphs:
+
+```shell
+https://zenodo.org/records/14720524
+```
+
+Second, run script in **Script_QALD**
+
+### Drill
+First, Load the knowledge graph using triple store, to find knowledge graphs:
+
+```shell
+https://zenodo.org/records/14720524
+```
+
+Second, get embedding using Dice Embedding(https://github.com/dice-group/dice-embeddings). we also provide embedding(https://zenodo.org/records/14720609).
+the configuration we use to train embedding:
+
+| Datasets     | Parameter                                                                                                                                                                                           |
+|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **QALD10**   | **Main Parameters**                                                                                                                                                                                 |
+|              | `dicee --dataset_dir  KGs/QALD10 --model Keci --embedding_dim 32 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 50000 --optim Adam --scoring_technique NegSample --eval_mode None` |
+|              | **Model:** Keci                                                                                                                                                                                     |
+|              | **Embedding dimension:** 32                                                                                                                                                                         |
+|              | **Learning rate:** 0.1                                                                                                                                                                              |
+|              | **Epochs:** 1                                                                                                                                                                                       |
+|              | **Batch size:** 50000                                                                                                                                                                               |
+|              | **Optimization function:** Adam                                                                                                                                                                     |
+|              | **Evaluation mode:** None                                                                                                                                                                           |
+|              |                                                                                                                                                                                                     |
+| **QALD9+DB** | **Main Parameters**                                                                                                                                                                                 |
+|              | `dicee --dataset_dir  KGs/QALD9_WK --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None`  |
+|              | **Model:** Keci                                                                                                                                                                                     |
+|              | **Embedding dimension:** 8                                                                                                                                                                          |
+|              | **Learning rate:** 0.1                                                                                                                                                                              |
+|              | **Epochs:** 1                                                                                                                                                                                       |
+|              | **Batch size:** 512                                                                                                                                                                                 |
+|              | **Optimization function:** Adam                                                                                                                                                                     |
+|              | **Evaluation mode:** None                                                                                                                                                                           |
+|              |                                                                                                                                                                                                     |
+| **QALD9+WD** | **Main Parameters**                                                                                                                                                                                 |
+|              | `dicee --dataset_dir  KGs/QALD9_DB --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None`  |
+|              | **Model:** Keci                                                                                                                                                                                     |
+|              | **Embedding dimension:** 8                                                                                                                                                                          |
+|              | **Learning rate:** 0.1                                                                                                                                                                              |
+|              | **Epochs:** 1                                                                                                                                                                                       |
+|              | **Batch size:** 512                                                                                                                                                                                 |
+|              | **Optimization function:** Adam                                                                                                                                                                     |
+|              | **Evaluation mode:** None                                                                                                                                                                           |
+
+
+
+
+
+
+
+Third, use embedding and knowledge graphs to get pretrained model, we also provide pretrained model(https://zenodo.org/records/14720524).
+
+
+
+In the end, run Drill.
 
 ## 6. Details Experiment III
 
@@ -186,58 +283,5 @@ The system "QAS2" can answer questions if:
 
 The survey and the detailed results can be found in the file `Experiment_III_Survey.pdf` within this repository.
 
-## 7. FAQ
-TODO Check the relevancy of the questions
-### Question about PruneCEL
 
-1, Where can I get the knowledge graph?
-
-`https://zenodo.org/records/14720524`
-
-2, Where can I get the Embedding?
-
-`https://zenodo.org/records/14720609`
-
-3, Where can I get the pretrained model for Drill?
-
-`https://zenodo.org/records/14720524`
-  
-4, How can I run PruneCEL?
-
-First, Load the knowledge graph using triple store; Second, run script in /script directory, 
-here is an example script:
-```
-java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
---sparqlUrl http://localhost:9020/sparql \
---ontology ALC \
---accuracyfunction 0 \
---punishLongExpression true \
---avoidPickySolutionsDecorator true \
---iteration 0 \
---time 60000 \
---recursive true \
---skipNone true \
---inputFile ./././././T_F_Json/Carcinogenesis/lps.json \
---outputFile ./././././Results/Carcinogenesis/Carcinogenesis110.csv \
---cluster false \
---folds 1 \
---foldTrainTestSavePath Fold/Mutagenesis
-```
-Change sparqlUrl to your own sparql endpoint;
-
-Change accuracyfunction to 0 or 1 or 2, where 0 is F1, 1 is Balance Accuracy, 2 is Accuracy;
-
-Change recursive to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-R;
-
-Change skipNone to 0 or 1, where 0 is PruneCEL and 1 is PruneCEL-S;
-
-Change intputFile to .Json file in T_F_Json;
-
-Change outputFile to the place you want to save your results;
-
-Leave the rest settings along!
-
-5, Where can I find the learning problems?
-
-    `/T_F_JSON`
 
