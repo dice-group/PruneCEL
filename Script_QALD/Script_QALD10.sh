@@ -1,9 +1,3 @@
-PRUNECEL_DIR="/JavaProjects"
-
-echo $(date --iso-8601) " Starting script.. !!"
-
-cd "$PRUNECEL_DIR" || { echo "Failed to change directory to $PRUNECEL_DIR. Exiting."; exit 1; }
-# Run Script
 
 java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
     --sparqlUrl http://localhost:9080/sparql \
