@@ -16,13 +16,11 @@ This repository contains
 ## 1. Repository Structure
 The following directories and files can be found within this project:
 ```
-+-Doc/Pic:                   Pictures used in this README
-+-Script_F_C_M:              The scripts that we used to run PruneCEL in Experiment I
-+-Script_QALD:               The scripts that we used to run PruneCEL in Experiment II
-+-T_F_Json:                  The learning problems of Experiment I and II
-+-Experiment_III_Survey.pdf: Details of the survey in Experiment III
-+-src:                       The Java source code of PruneCEL
-+-pom.xml:                   File necessary to compile PruneCEL with Maven
+- Doc/Pic:                   Pictures used in this README
+- T_F_Json:                  The learning problems of Experiment I and II
+- Experiment_III_Survey.pdf: Details of the survey in Experiment III
+- src:                       The Java source code of PruneCEL
+- pom.xml:                   File necessary to compile PruneCEL with Maven
 ```
 
 ## 2. Running Experiments
@@ -45,17 +43,19 @@ The result of the compilation and packaging process is available as `target/prun
 
 ## 3. Run Experiment I
 
-Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
+### Data
 
-To run Experiment I on PruneCEL, we first have to load the knowledge base that we want to use into the triple store. The knowledge bases for Experiment I can be download as follows:
+The data is [available online](https://files.dice-research.org/projects/Ontolearn/KGs.zip) and can be downloaded using the following command:
 ```shell
 wget https://files.dice-research.org/projects/Ontolearn/KGs.zip -O ./KGs.zip && unzip KGs.zip
 ```
-The file contains the three knowledge bases of the first experiment. The knowledge base that you want to use has to be loaded into a triple store.
+The file contains the three knowledge bases of the first experiment. The knowledge base that you want to use has to be loaded into a triple store. 
 
-After that, the script in the `Script_F_C_M` directory can be used to execute PruneCEL. Within the script, you will see the following command:
+### PruneCEL
+
+After compiling PruneCEL, it can be executed using the following command:
 ```shell
-java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
+java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.example.cel.PruneCEL_CLI \
 --sparqlUrl http://localhost:9020/sparql \
 --ontology ALC \
 --accuracyfunction 0 \
@@ -65,11 +65,11 @@ java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI 
 --time 60000 \
 --recursive true \
 --skipNone true \
---inputFile ./././././T_F_Json/Carcinogenesis/lps.json \
---outputFile ./././././Results/Carcinogenesis/Carcinogenesis110.csv \
+--inputFile T_F_Json/Carcinogenesis/lps.json \
+--outputFile Results/Carcinogenesis/Carcinogenesis110.csv \
 --cluster false \
 --folds 1 \
---foldTrainTestSavePath Fold/Mutagenesis
+--foldTrainTestSavePath Fold/Carcinogenesis
 ```
 The command has to be adapted as follows:
 * `sparqlUrl` has to be changed to to your own SPARQL endpoint containing the knowledge base
@@ -80,6 +80,10 @@ The command has to be adapted as follows:
 * `outputFile` defines a path where the results will be stored.
 
 The other settings should be left as they are.
+
+### Other Algorithms
+
+Thankfully, the Ontolearn project provides [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) how to execute the related work approaches (CELOE, Drill, EvoLearner and NCES) on the benchmarking datasets.
 
 ## 4. Knowledge Base Details
 
@@ -123,23 +127,15 @@ The following figure shows an example question (Question 1 from QALD10) and the 
 Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. The questions can have different answer types, represented by different properties: `dqb:hasIRIAnswer`, `dqb:hasLiteralAnswer`, and `dqb:hasBooleanAnswer`. 
 
 ## 5. Run Experiment II
+The knowledge bases for the QALD datasets can be found online at https://zenodo.org/records/14720669. Again, the chosen knowledge base has to be loaded into a triple store.
+
 ### PruneCEL
-First, Load the knowledge graph using triple store, to find knowledge graphs:
 
-```shell
-https://zenodo.org/records/14720669
-```
+The same command as mentioned before can be used. Only the paths have to be adapted and the `--time` parameter (in seconds) should be set to a higher value, e.g., `600000`.
 
-Second, run script in **Script_QALD**
+### Other Algorithms
 
-### Drill
-First, Load the knowledge graph using triple store, to find knowledge graphs:
-
-```shell
-https://zenodo.org/records/14720669
-```
-
-Second, Drill relies on embeddings,to get embedding, please use Dice Embedding model(https://github.com/dice-group/dice-embeddings). we also provide well-trained embedded(https://zenodo.org/records/14720609).
+Again, we refer to the [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) of the Ontolearn project. However, Drill needs an embedding model for each knowledge base. The models we used are available at https://zenodo.org/records/14720609.
 
 The configuration we use to train embedding:
 
