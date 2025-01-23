@@ -2,7 +2,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.dice-research</groupId>
+    <groupId>org.example</groupId>
     <artifactId>prune-cel</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
@@ -18,12 +18,7 @@
     </properties>
 
     <repositories>
-        <!-- Let's use a local repository for the local libraries of this
-        project
-        <repository>
-            <id>local repository</id>
-            <url>file://${project.basedir}/repository</url>
-        </repository> -->
+        <!-- We need some external libraries from Leipzig -->
         <repository>
             <id>maven.aksw.internal</id>
             <name>University Leipzig, AKSW Maven2 Repository</name>
