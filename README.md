@@ -134,53 +134,20 @@ The same command as mentioned before can be used. Only the paths have to be adap
 
 ### Other Algorithms
 
-Again, we refer to the [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) of the Ontolearn project. However, Drill needs an embedding model for each knowledge base. The models we used are available at https://zenodo.org/records/14720609.
+Again, we refer to the [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) of the Ontolearn project. However, Drill needs an embedding model for each knowledge base. The models we used are available at https://zenodo.org/records/14720609.We also provide a pre-trained model for Drill (https://zenodo.org/records/14720524).
 
-The configuration we use to train embedding:
+The following table gives an overview of the parameters, that we use to calculate the [Keci embeddings](https://github.com/dice-group/dice-embeddings).
 
-| Datasets     | Parameter                                                                                                                                                                                           |
-|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **QALD10**   | **Main Parameters**                                                                                                                                                                                 |
-|              | `dicee --dataset_dir  KGs/QALD10 --model Keci --embedding_dim 32 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 50000 --optim Adam --scoring_technique NegSample --eval_mode None` |
-|              | **Model:** Keci                                                                                                                                                                                     |
-|              | **Embedding dimension:** 32                                                                                                                                                                         |
-|              | **Learning rate:** 0.1                                                                                                                                                                              |
-|              | **Epochs:** 1                                                                                                                                                                                       |
-|              | **Batch size:** 50000                                                                                                                                                                               |
-|              | **Optimization function:** Adam                                                                                                                                                                     |
-|              | **Evaluation mode:** None                                                                                                                                                                           |
-|              |                                                                                                                                                                                                     |
-| **QALD9+DB** | **Main Parameters**                                                                                                                                                                                 |
-|              | `dicee --dataset_dir  KGs/QALD9_WK --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None`  |
-|              | **Model:** Keci                                                                                                                                                                                     |
-|              | **Embedding dimension:** 8                                                                                                                                                                          |
-|              | **Learning rate:** 0.1                                                                                                                                                                              |
-|              | **Epochs:** 1                                                                                                                                                                                       |
-|              | **Batch size:** 512                                                                                                                                                                                 |
-|              | **Optimization function:** Adam                                                                                                                                                                     |
-|              | **Evaluation mode:** None                                                                                                                                                                           |
-|              |                                                                                                                                                                                                     |
-| **QALD9+WD** | **Main Parameters**                                                                                                                                                                                 |
-|              | `dicee --dataset_dir  KGs/QALD9_DB --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None`  |
-|              | **Model:** Keci                                                                                                                                                                                     |
-|              | **Embedding dimension:** 8                                                                                                                                                                          |
-|              | **Learning rate:** 0.1                                                                                                                                                                              |
-|              | **Epochs:** 1                                                                                                                                                                                       |
-|              | **Batch size:** 512                                                                                                                                                                                 |
-|              | **Optimization function:** Adam                                                                                                                                                                     |
-|              | **Evaluation mode:** None                                                                                                                                                                           |
-
-
-
-
-
-
-
-Third, use embedding and knowledge graphs to get pre-trained model, we also provide well-trained pre-trained model for Drill(https://zenodo.org/records/14720524).
-
-
-In the end, run Drill.
-
+| **Parameters**     | **QALD9+DB** | **QALD9+WD** | **QALD10** |
+|---|---|---|---|
+| Model | Keci | Keci | Keci |
+| Dimensions | 8 | 8 | 32 |
+| Learning rate | 0.1 | 0.1 | 0.1 |
+| Epochs | 1 | 1 | 1 |
+| Batch size | 512 | 512 | 50000 |
+| Optimization function | Adam | Adam | Adam |
+| Evaluation mode | None | None | None |
+| Complete command | `dicee --dataset_dir  KGs/QALD9_DB --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None`   | `dicee --dataset_dir  KGs/QALD9_WK --model Keci --embedding_dim 8 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 512 --optim Adam --scoring_technique NegSample --eval_mode None` | `dicee --dataset_dir  KGs/QALD10 --model Keci --embedding_dim 32 --lr 0.1  --save_embeddings_as_csv --num_epochs 1  --batch_size 50000 --optim Adam --scoring_technique NegSample --eval_mode None` |
 
 ## 6. Details Experiment III
 
