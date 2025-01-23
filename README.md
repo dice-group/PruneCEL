@@ -144,8 +144,9 @@ First, Load the knowledge graph using triple store, to find knowledge graphs:
 https://zenodo.org/records/14720669
 ```
 
-Second, get embedding using Dice Embedding(https://github.com/dice-group/dice-embeddings). we also provide well-trained embedded(https://zenodo.org/records/14720609).
-the configuration we use to train embedding:
+Second, Drill relies on embeddings,to get embedding, please use Dice Embedding model(https://github.com/dice-group/dice-embeddings). we also provide well-trained embedded(https://zenodo.org/records/14720609).
+
+The configuration we use to train embedding:
 
 | Datasets     | Parameter                                                                                                                                                                                           |
 |--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -185,11 +186,11 @@ the configuration we use to train embedding:
 
 
 
-Third, use embedding and knowledge graphs to get pre-trained model, we also provide well-trained pre-trained model(https://zenodo.org/records/14720524).
-
+Third, use embedding and knowledge graphs to get pre-trained model, we also provide well-trained pre-trained model for Drill(https://zenodo.org/records/14720524).
 
 
 In the end, run Drill.
+
 
 ## 6. Details Experiment III
 
