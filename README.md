@@ -25,8 +25,6 @@ The following directories and files can be found within this project:
 +-pom.xml:                   File necessary to compile PruneCEL with Maven
 ```
 
-TODO add survey details!
-
 ## 2. Running Experiments
 
 ### Experiment Setup
@@ -43,10 +41,7 @@ PruneCEL is a Maven project and after downloading this repository, PruneCEL can 
 ```sh
 mvn clean package
 ```
-The result of the compilation and packaging process is available as `target/prune-cel-0.0.1-SNAPSHOT.jar`. In the following, we will name this jar file just `prune-cel.jar`, so you may want to move it using 
-```sh
-mv target/prune-cel-0.0.1-SNAPSHOT.jar prune-cel.jar
-```
+The result of the compilation and packaging process is available as `target/prune-cel-0.0.1-SNAPSHOT.jar`.
 
 ## 3. Run Experiment I
 
