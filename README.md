@@ -132,7 +132,7 @@ Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes t
 First, Load the knowledge graph using triple store, to find knowledge graphs:
 
 ```shell
-https://zenodo.org/records/14720524
+https://zenodo.org/records/14720669
 ```
 
 Second, run script in **Script_QALD**
@@ -141,7 +141,7 @@ Second, run script in **Script_QALD**
 First, Load the knowledge graph using triple store, to find knowledge graphs:
 
 ```shell
-https://zenodo.org/records/14720524
+https://zenodo.org/records/14720669
 ```
 
 Second, get embedding using Dice Embedding(https://github.com/dice-group/dice-embeddings). we also provide embedding(https://zenodo.org/records/14720609).
