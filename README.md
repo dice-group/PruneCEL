@@ -11,7 +11,6 @@ This repository contains
 4. [Knowledge Base Details](README.md#4-knowledge-base-details)
 5. [Run Experiment II](README.md#5-run-experiment-ii)
 6. [Details Experiment III](README.md#6-details-experiment-iii)
-7. [FAQ](README.md#7-faq)
 
 ## 1. Repository Structure
 The following directories and files can be found within this project:
@@ -45,7 +44,7 @@ The result of the compilation and packaging process is available as `target/prun
 
 ### Data
 
-The data is [available online](https://files.dice-research.org/projects/Ontolearn/KGs.zip) and can be downloaded using the following command:
+The [Ontolearn project](https://github.com/dice-group/Ontolearn) made the knowledge bases of the three benchmarking datasets for concept learning [available online](https://files.dice-research.org/projects/Ontolearn/KGs.zip). It can be downloaded using the following command:
 ```shell
 wget https://files.dice-research.org/projects/Ontolearn/KGs.zip -O ./KGs.zip && unzip KGs.zip
 ```
