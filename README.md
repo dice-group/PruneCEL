@@ -3,6 +3,7 @@ This repository contains
 * The source code of our concept learning approach PruneCEL
 * Links and descriptions to rerun Experiments I and II
 * The survey and its results of Experiment III
+* The appendix contains the full set of results of PruneCEL-RS with different quality measures.
 
 ## Table of Contents
 1. [Repository Structure](README.md#1-repository-structure)
@@ -11,6 +12,8 @@ This repository contains
 4. [Knowledge Base Details](README.md#4-knowledge-base-details)
 5. [Run Experiment II](README.md#5-run-experiment-ii)
 6. [Details Experiment III](README.md#6-details-experiment-iii)
+7. [Appendix](README.md#7-appendix)
+
 
 ## 1. Repository Structure
 The following directories and files can be found within this project:
@@ -241,5 +244,6 @@ The system "QAS2" can answer questions if:
 
 The survey and the detailed results can be found in the file `Experiment_III_Survey.pdf` within this repository.
 
-
-
+## 7. Appendix
+The following table presents the complete set of results for PruneCEL-RS.
+![example_KG](Doc/Pic/Appendix.png)
