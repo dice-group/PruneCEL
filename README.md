@@ -20,8 +20,8 @@ This repository contains
 The following directories and files can be found within this project:
 ```
 - Doc/Pic:                   Pictures used in this README
-- T_F_Json:                  The learning problems of Experiment I and II
-- Experiment_III_Survey.pdf: Details of the survey in Experiment III
+- T_F_Json:                  The learning problems of Experiment I 
+- Experiment_II_Survey.pdf:  Details of the survey in Experiment II
 - src:                       The Java source code of PruneCEL
 - pom.xml:                   File necessary to compile PruneCEL with Maven
 ```
