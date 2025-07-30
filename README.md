@@ -128,14 +128,14 @@ We preprocessed Wikidata by replacing the property `http://www.wikidata.org/prop
 
 In the first step of our benchmarking framework, we generate a knowledge graph comprising information from the dataset used during the benchmarking process. Our work relies on the QALD datasets, which include three types of data for each question:
 1. **Natural language question.** Each question comes with a representation in several languages. From the English question, we extract linguistic features such as
-   * The length of the question(dqb:hasLength),
-   * The presence of negation(dqb:hasNegation),
-   * The question word(dqb:hasQuestionWord),
-   * The NLP parse tree(dqb:hasNlpParseTreeRoot), We employ the Stanford NLP toolkit for the extraction.
-3. **Answer(s).** Each question comes with the ground truth answers. We add these answers to the generated graph with three different properties distinguishing IRI answers(dqb:hasIRIAnswer), boolean answers(dqb:hasBooleanAnswer) and other literal answers(dqb:hasLiteralAnswer).
+   * The length of the question(`dqb:hasLength`),
+   * The presence of negation(`dqb:hasNegation`),
+   * The question word(`dqb:hasQuestionWord`),
+   * The NLP parse tree(`dqb:hasNlpParseTreeRoot`), We employ the Stanford NLP toolkit for the extraction.
+3. **Answer(s).** Each question comes with the ground truth answers. We add these answers to the generated graph with three different properties distinguishing IRI answers(`dqb:hasIRIAnswer`), boolean answers(`dqb:hasBooleanAnswer`) and other literal answers(`dqb:hasLiteralAnswer`).
     For each IRI listed as answer, we add its concise bounded description (CBD) extracted from the reference knowledge graph.
 4. **SPARQL query.** Each question has a SPARQL query that returns the ground truth answer when used on the reference knowledge graph. We adopt LSQ to add the following SPARQL query features to our knowledge graph:
-   * Entities(dqb:hasEntity), properties(dqb:hasProperty) contained in the query and the CBD of the entities,
+   * Entities(`dqb:hasEntity`), properties(`dqb:hasProperty`) contained in the query and the CBD of the entities,
    * Type of query,
    * The number of triple patterns,
    * The number of basic graph patterns, 
@@ -148,7 +148,7 @@ The following figure shows an example question (Question 1 from QALD10) and the 
 
 ![example_KG](Doc/Pic/example_KG.png)
 
-Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. The questions can have different answer types, represented by different properties: `dqb:hasIRIAnswer`, `dqb:hasLiteralAnswer`, and `dqb:hasBooleanAnswer`. 
+Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. 
 
 ## 5. Run Experiment I
 The knowledge bases for the QALD datasets can be found online at https://zenodo.org/records/14720669. Again, the chosen knowledge base has to be loaded into a triple store.
