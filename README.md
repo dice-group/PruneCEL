@@ -4,7 +4,7 @@ This repository contains
 * Comparison between PruneCEL and other learners on family, mutagenesis and carcinogenesis datasets
 * Links and descriptions to rerun Experiments I 
 * The survey and its results of Experiment II
-* The appendix contains the full set of results of PruneCEL-RS with different quality measures.
+
 
 ## Table of Contents
 1. [Repository Structure](README.md#1-repository-structure)
@@ -13,7 +13,8 @@ This repository contains
 4. [Knowledge Base Details](README.md#4-knowledge-base-details)
 5. [Run Experiment I](README.md#5-run-experiment-i)
 6. [Details Experiment II](README.md#6-details-experiment-ii)
-7. [Appendix](README.md#7-appendix)
+7. [Reference](README.md#7-references)
+
 
 
 ## 1. Repository Structure
@@ -102,6 +103,8 @@ Thankfully, the Ontolearn project provides [examples](https://github.com/dice-gr
 
 ![example_KG](Doc/Pic/F-M-C-results.png)
 
+Experiments on the Family was ran on a server (AMD EPYC 7282, 252 GB RAM). Experiments on the Mutagenesis and Carcinogenesis were ran on a laptop (Intel i7-13700H, 31 GB RAM).
+
 The results of the experiment listed in Table 4 show that PruneCEL significantly outperforms state-of-the-art concept learners on the Mutagenesis and Carcinogenesis datasets, and achieves a similar performance as the best-performing concept learner on the Family dataset (i.e., without a significant difference). We use the Student’s t-test with $\alpha=0.05$ assuming that the F1 scores of the single learning problems follow a normal distribution.
 
 With respect to the average runtime, PruneCEL is slower than the fastest state-of-the-art concept learners on the Family dataset, but especially PruneCEL-RS achieves very good runtimes on the two larger datasets.
@@ -144,11 +147,11 @@ In the first step of our benchmarking framework, we generate a knowledge graph c
    * The minimum, maximum, and median number of triple patterns in a basic graph pattern, and
    * The presence of certain keywords such as `FILTER`, `DISTINCT`, and `GROUP BY`.
 
-The following figure shows an example question (Question 1 from QALD10) and the data that we collected for such a question.
+The following figure shows an example question (Question 1 from QALD10) and the data that we collected for such a question, each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number.
 
 ![example_KG](Doc/Pic/example_KG.png)
 
-Each question is represented by an IRI in the form `dqq:QX`, where `X` denotes the question's serial number. 
+
 
 ## 5. Run Experiment I
 The knowledge bases for the QALD datasets can be found online at https://zenodo.org/records/14720669. Again, the chosen knowledge base has to be loaded into a triple store.
@@ -156,6 +159,10 @@ The knowledge bases for the QALD datasets can be found online at https://zenodo.
 ### PruneCEL
 
 The same command as mentioned before can be used. Only the paths have to be adapted and the `--time` parameter (in seconds) should be set to a higher value, `600000`.
+
+The table 7 presents the complete set of results for PruneCEL-RS on experiment I.
+![example_KG](Doc/Pic/Appendix.png)
+
 
 ### Other Algorithms
 
@@ -264,14 +271,12 @@ The system "QAS2" can answer questions if:
 
 ### Survey
 
-The survey and the detailed results can be found in the file `Experiment_III_Survey.pdf` within this repository.
-
-## 7. Appendix
-The table 7 presents the complete set of results for PruneCEL-RS on experiment I.
-![example_KG](Doc/Pic/Appendix.png)
+The survey and the detailed results can be found in the file `Experiment_II_Survey.pdf` within this repository.
 
 
-## 8. References
+
+
+## 7. References
 
 [NCES] N’Dah Jean Kouagou, Stefan Heindorf, Caglar Demir, and Axel-Cyrille Ngonga Ngomo.  
 *Neural Class Expression Synthesis*. In *The Semantic Web*. Springer Nature Switzerland, Cham, 2023, pp. 209–226.  
