@@ -21,9 +21,7 @@ public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorato
 
     @Override
     public double calculateRefinementScore(int posCount, int negCount, double classificationScore, ClassExpression ce) {
-        LengthDetectingVisitor visitor = new LengthDetectingVisitor();
-        ce.accept(visitor);
-        return classificationScore - (visitor.length * lengthPenalty);
+        return classificationScore - (getLength(ce) * lengthPenalty);
     }
 
     public static class Factory implements ScoreCalculatorFactory {
@@ -38,6 +36,12 @@ public class LengthBasedRefinementScorer extends AbstractScoreCalculatorDecorato
         public ScoreCalculator create(int numOfPositives, int numOfNegatives) {
             return new LengthBasedRefinementScorer(decoratedFactory.create(numOfPositives, numOfNegatives));
         }
+    }
+
+    public static int getLength(ClassExpression ce) {
+        LengthDetectingVisitor visitor = new LengthDetectingVisitor();
+        ce.accept(visitor);
+        return visitor.length;
     }
 
     /**

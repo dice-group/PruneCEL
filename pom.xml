@@ -79,6 +79,12 @@
             <artifactId>topicmodeling.commons</artifactId>
             <version>0.0.3-SNAPSHOT</version>
         </dependency>
+        <!-- Fast bit sets -->
+        <dependency>
+            <groupId>javolution</groupId>
+            <artifactId>javolution</artifactId>
+            <version>5.5.1</version>
+        </dependency>
         <!-- ~~~~~~~~~~~~~~~~~~~ Logging ~~~~~~~~~~~~~~~~~~~~~~ -->
         <!-- slf4j: Logging API -->
         <dependency>

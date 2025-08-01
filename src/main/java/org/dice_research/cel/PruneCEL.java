@@ -40,22 +40,19 @@ import org.dice_research.topicmodeling.commons.collections.TopIntObjectCollectio
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PruneCEL {
+public class PruneCEL extends AbstractConceptLearner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PruneCEL.class);
 
     protected ExtendedSuggestor suggestor;
     protected DescriptionLogic logic;
     protected ScoreCalculatorFactory calculatorFactory;
-    protected int maxIterations = 0;
-    protected long maxTime = 0L;
     protected boolean skipNonImprovingStmts = false;
 
     protected boolean recursiveProblemSolving = false;
     protected InstanceRetriever retriever = null;
     protected double precisionThreshold = 1.0;
     protected double timeForRecursiveIteration = 0.5;
-    protected boolean debugMode = false;
 
     public PruneCEL(ExtendedSuggestor suggestor, DescriptionLogic logic, ScoreCalculatorFactory calculatorFactory) {
         super();
@@ -70,20 +67,6 @@ public class PruneCEL {
         this.retriever = retriever;
         this.precisionThreshold = precisionThreshold;
         this.timeForRecursiveIteration = timeForRecursiveIteration;
-    }
-
-    public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative) {
-        return findClassExpression(positive, negative, null, null);
-    }
-
-    public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
-            OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
-        long startTime = System.currentTimeMillis();
-        if (iResultPrinter != null) {
-            iResultPrinter.setStartTime(startTime);
-        }
-        long timeToStop = maxTime > 0 ? startTime + maxTime : 0;
-        return findClassExpression(positive, negative, logStream, iResultPrinter, startTime, timeToStop);
     }
 
     public List<ScoredClassExpression> findClassExpression(Collection<String> positive, Collection<String> negative,
@@ -176,34 +159,6 @@ public class PruneCEL {
     }
 
     /**
-     * @return the maxIterations
-     */
-    public int getMaxIterations() {
-        return maxIterations;
-    }
-
-    /**
-     * @param maxIterations the maxIterations to set
-     */
-    public void setMaxIterations(int maxIterations) {
-        this.maxIterations = maxIterations;
-    }
-
-    /**
-     * @return the maxTime
-     */
-    public long getMaxTime() {
-        return maxTime;
-    }
-
-    /**
-     * @param maxTime the maxTime to set
-     */
-    public void setMaxTime(long maxTime) {
-        this.maxTime = maxTime;
-    }
-
-    /**
      * @return the skipNonImprovingStmts
      */
     public boolean isSkipNonImprovingStmts() {
@@ -226,15 +181,12 @@ public class PruneCEL {
         }
     }
 
-    public void setDebugMode(boolean debugMode) {
-        this.debugMode = debugMode;
-    }
-
     public static void main(String[] args) throws Exception {
         // XXX Set SPARQL endpoint
-         String endpoint = "http://localhost:9080/sparql";
+//         String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
 //        String endpoint = "http://localhost:3030/family/sparql";
+        String endpoint = "http://localhost:3030/imdb10000/sparql";
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // QALD9-plus-wikidata
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
@@ -242,6 +194,9 @@ public class PruneCEL {
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9010/sparql";
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
+        long maxRunTime = 300000;
+        
+//        Thread.sleep(10000);
 
         ScoreCalculatorFactory factory = null;
         // XXX Choose either F1 or balanced accuracy
@@ -277,7 +232,7 @@ public class PruneCEL {
             // XXX Max iterations of the refinement
             // cel.setMaxIterations(1000);
             // XXX Maximum time (in ms)
-            cel.setMaxTime(60000);
+            cel.setMaxTime(maxRunTime);
             // XXX (Optional) try to avoid refining expressions that have not been created
             // in a promising way (i.e., just added a class to an existing expression
             // without changing the accuracy of the expression)
@@ -288,7 +243,8 @@ public class PruneCEL {
 
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
-//            Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            //Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
+            Collection<LearningProblem> problems = reader.readProblems("LPs/IMDB_LPs/imdb_10000.json");
 //            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
@@ -299,7 +255,7 @@ public class PruneCEL {
 //                    .readProblems("/home/micha/Downloads/TandF_ganswer_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("LPs/QA/TandF_MST5_reverse.json");
-            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/QALD9_plus_dbpediaTrain_Fold_7.json");
+//            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/QALD9_plus_dbpediaTrain_Fold_7.json");
 
             // DEBUG CODE!!!
 //            ClassExpression ce;
@@ -395,7 +351,7 @@ public class PruneCEL {
         }
     }
 
-    public static void runSearch(String name, List<String> positive, List<String> negative, PruneCEL cel,
+    public static void runSearch(String name, List<String> positive, List<String> negative, ConceptLearner cel,
             PrintStream pout, OutputStream logStream, IntermediateResultPrinter iResultPrinter) {
         System.out.println("Starting " + name);
         long time = System.currentTimeMillis();

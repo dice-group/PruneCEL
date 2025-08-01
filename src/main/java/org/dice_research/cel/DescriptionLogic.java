@@ -2,7 +2,7 @@ package org.dice_research.cel;
 
 import java.util.BitSet;
 
-public class DescriptionLogic {
+public class DescriptionLogic implements Cloneable {
     /**
      * The name of the description logic.
      */
@@ -70,6 +70,27 @@ public class DescriptionLogic {
     protected boolean supportsDataValues = false;
 
     protected DescriptionLogic() {
+    }
+
+    protected DescriptionLogic(String name, boolean supportsAtomicNegation, boolean supportsConceptIntersection,
+            boolean supportsUniversalRestrictions, boolean supportsExistentialQuantification,
+            boolean supportsConceptUnion, boolean supportsComplexConceptNegation, boolean supportsRoleHierarchy,
+            boolean supportsNominals, boolean supportsInverseProperties, boolean supportsCardinalityRestrictions,
+            boolean supportsQualifiedCardinality, boolean supportsDataValues) {
+        super();
+        this.name = name;
+        this.supportsAtomicNegation = supportsAtomicNegation;
+        this.supportsConceptIntersection = supportsConceptIntersection;
+        this.supportsUniversalRestrictions = supportsUniversalRestrictions;
+        this.supportsExistentialQuantification = supportsExistentialQuantification;
+        this.supportsConceptUnion = supportsConceptUnion;
+        this.supportsComplexConceptNegation = supportsComplexConceptNegation;
+        this.supportsRoleHierarchy = supportsRoleHierarchy;
+        this.supportsNominals = supportsNominals;
+        this.supportsInverseProperties = supportsInverseProperties;
+        this.supportsCardinalityRestrictions = supportsCardinalityRestrictions;
+        this.supportsQualifiedCardinality = supportsQualifiedCardinality;
+        this.supportsDataValues = supportsDataValues;
     }
 
     public boolean supportsAtomicNegation() {
@@ -245,6 +266,14 @@ public class DescriptionLogic {
      */
     protected void setSupportsDataValues(boolean supportsDataValues) {
         this.supportsDataValues = supportsDataValues;
+    }
+
+    @Override
+    public Object clone() {
+        return new DescriptionLogic(name, supportsAtomicNegation, supportsConceptIntersection,
+                supportsUniversalRestrictions, supportsExistentialQuantification, supportsConceptUnion,
+                supportsComplexConceptNegation, supportsRoleHierarchy, supportsNominals, supportsInverseProperties,
+                supportsCardinalityRestrictions, supportsQualifiedCardinality, supportsDataValues);
     }
 
     public static DescriptionLogic parse(String name) {

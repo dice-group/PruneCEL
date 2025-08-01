@@ -11,8 +11,9 @@ import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestor;
 public class Check {
 
     public static void main(String[] args) throws Exception {
+        String endpoint = "http://localhost:9080/sparql";
         // QALD9 DBpedia
-        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
+//        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // QALD9-plus-wikidata
         // String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
         // QALD 10
@@ -41,29 +42,10 @@ public class Check {
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q26",
 //                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q68" };
         String questions[] = new String[] {
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q122",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q29",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q141",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q135",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q132",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q32",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q156",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q203",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q111",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q149",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q115",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q190",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q201",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q148",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q143",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q157",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q175",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q145",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q14",
-                "https://github.com/KGQA/QALD_9_plus/blob/main/data/qald_9_plus/qald_9_plus_dbpedia.json#Q59" };
+                "https://github.com/KGQA/QALD-10/blob/main/data/qald_10/qald_10.json#Q276" };
 
         ClassExpression ce = (new CEParser()).parse(
-                "∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.((¬http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#Agent⊓∃http://dbpedia.org/ontology/parentMountainPeak.⊤)⊔http://www.wikidata.org/entity/Q41176)⊔(∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(http://dbpedia.org/ontology/Astronaut⊔(¬http://www.wikidata.org/entity/Q24229398⊓¬http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing))⊓∃http://w3id.org/dice-research/qa-bench#hasQuestionWord.⊤)");
+                "(∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(http://www.wikidata.org/entity/Q482994⊔∃http://www.wikidata.org/prop/direct/P7763.⊤⊔http://www.wikidata.org/entity/Q28640⊔∃http://www.wikidata.org/prop/direct/P131.¬http://www.wikidata.org/entity/Q6256⊔∃http://www.wikidata.org/prop/direct/P1557.⊤)⊔∃http://w3id.org/dice-research/qa-bench#hasBooleanAnswer.⊤)");
 //        ClassExpression ce = (new CEParser()).parse(
 //                "(∃http://w3id.org/dice-research/qa-bench#hasQuery.∀http://w3id.org/dice-research/qa-bench#hasEntity.∃http://dbpedia.org/ontology/thumbnail.⊤⊓(∃http://w3id.org/dice-research/qa-bench#hasLiteralAnswer.⊤⊔∃http://w3id.org/dice-research/qa-bench#hasIRIAnswer.(http://dbpedia.org/ontology/Building⊔(∃http://www.w3.org/2000/01/rdf-schema#seeAlso.⊤⊓http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#NaturalPerson))))");
 //        ClassExpression ce = (new CEParser()).parse(
