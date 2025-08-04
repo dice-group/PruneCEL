@@ -154,7 +154,7 @@ The following figure shows an example question (Question 1 from QALD10) and the 
 
 
 ## 5. Run Experiment I
-The knowledge bases for the QALD datasets can be found via DOI 10.5281/zenodo.14720669. The learning problems can be found via DOI: 10.5281/zenodo.16681824
+The knowledge bases for the QALD datasets can be found at [DOI: 10.5281/zenodo.14720669](https://doi.org/10.5281/zenodo.14720669). The learning problems can be found at [DOI: 10.5281/zenodo.16681824](https://doi.org/10.5281/zenodo.16681824).
 Again, the chosen knowledge base has to be loaded into a triple store.
 
 ### PruneCEL
@@ -167,7 +167,7 @@ The table 7 presents the complete set of results for PruneCEL-RS on experiment I
 
 ### Other Algorithms
 
-Again, we refer to the [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) of the Ontolearn project. However, Drill needs an embedding model for each knowledge base. The models we used can be found via DOI: 10.5281/zenodo.14720609. We also provide a pre-trained model for Drill (DOI:10.5281/zenodo.14720524).
+Again, we refer to the [examples](https://github.com/dice-group/Ontolearn/tree/develop/examples) of the Ontolearn project. However, Drill needs an embedding model for each knowledge base. The models we used can be found at [DOI: 10.5281/zenodo.14720609](https://doi.org/10.5281/zenodo.14720609). We also provide a pre-trained model for Drill [DOI: 10.5281/zenodo.14720524](https://doi.org/10.5281/zenodo.14720524)
 
 The following table gives an overview of the parameters, that we use to calculate the [Keci embeddings](https://github.com/dice-group/dice-embeddings).
 
