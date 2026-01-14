@@ -69,7 +69,7 @@ Table 2 shows the datasets' features(Family, Mutagenesis and Carcinogenesis).
 
 After compiling PruneCEL, it can be executed using the following command:
 ```shell
-java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.example.cel.PruneCEL_CLI \
+java -cp target/prune-cel-0.0.1-SNAPSHOT.jar org.dice_research.cel.PruneCEL_CLI \
 --sparqlUrl http://localhost:9020/sparql \
 --ontology ALC \
 --accuracyfunction 0 \
