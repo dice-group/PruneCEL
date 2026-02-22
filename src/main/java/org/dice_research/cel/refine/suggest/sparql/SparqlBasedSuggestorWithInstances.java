@@ -17,12 +17,11 @@ import java.util.Set;
 
 import org.aksw.jena_sparql_api.http.QueryExecutionFactoryHttp;
 import org.aksw.jenax.arq.connection.core.QueryExecutionFactory;
-import org.aksw.jenax.stmt.parser.query.SparqlQueryParser;
-import org.aksw.jenax.stmt.parser.query.SparqlQueryParserImpl;
 import org.apache.commons.io.FileUtils;
 import org.apache.jena.ext.com.google.common.collect.Iterators;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Resource;
@@ -52,6 +51,9 @@ public class SparqlBasedSuggestorWithInstances
     private static final String CLASS_VAR_NAME = "class";
     private static final String CLASS_VAR = "?" + CLASS_VAR_NAME;
     private static final String CLASS_TYPE_STMT = CLASS_VAR + " a <" + OWL.Class.getURI() + "> .";
+    private static final String INSTANCE_VAR_NAME = "instance";
+    private static final String INSTANCE_VAR = "?" + INSTANCE_VAR_NAME;
+    private static final String INSTANCE_TYPE_STMT = INSTANCE_VAR + " a " + CLASS_VAR + " .";
     private static final String EXAMPLE_VAR_NAME = "example";
     private static final String EXAMPLE_VAR = "?" + EXAMPLE_VAR_NAME;
     private static final String PROP_VAR_NAME = "prop";
@@ -65,7 +67,9 @@ public class SparqlBasedSuggestorWithInstances
     protected DisjunctionCheckingVisitor checker = new DisjunctionCheckingVisitor();
     protected SuggestionCheckingVisitor sugChecker = new SuggestionCheckingVisitor();
     protected ExpressionPreProcessor preprocessor = new ExpressionPreProcessor();
-    protected SparqlQueryParser queryParser = new SparqlQueryParserImpl();
+    // protected SparqlQueryParser queryParser = new SparqlQueryParserImpl();
+    // QueryFactory.create(queryStr);
+//    protected SPARQLParser queryParser = SPARQLParserRegistry.get().createParser(Syntax.syntaxARQ);//new SparqlQueryParserImpl();
     protected MultiNotExistFilterFixingVisitor classQueryVisitor = new MultiNotExistFilterFixingVisitor(CLASS_VAR,
             OWL.Class.getURI());
     protected MultiNotExistFilterFixingVisitor propertyQueryVisitor = new MultiNotExistFilterFixingVisitor(PROP_VAR,
@@ -266,13 +270,17 @@ public class SparqlBasedSuggestorWithInstances
         LOGGER.trace("Suggesting classes for {}", context);
         SuggestionDataWithInstances data = prepareForSuggestion(context, positive.size(), negative.size());
         String suggestionQuery;
-        suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, null);
+        if (logic.supportsNominals() || logic.supportsDataValues()) {
+            suggestionQuery = generateClassAndInstanceQuery(positive, negative, data.suggestionPart, null);
+        } else {
+            suggestionQuery = generateClassQuery(positive, negative, data.suggestionPart, null);
+        }
         data.suggestionQuery = prepareQuery(suggestionQuery, classQueryVisitor);
         return performClassSelection(data, positive, negative, positiveMaps, negativeMaps);
     }
 
     protected Query prepareQuery(String queryString, MultiNotExistFilterFixingVisitor visitor) {
-        Query query = queryParser.apply(queryString);
+        Query query = QueryFactory.create(queryString);// queryParser.apply(queryString);
         visitor.fixQuery(query);
         return query;
     }
@@ -285,6 +293,42 @@ public class SparqlBasedSuggestorWithInstances
         data.suggestionQuery = prepareQuery(generateNegatedClassQuery(positive, negative, data.suggestionPart, null),
                 classQueryVisitor);
         return performClassSelection(data, positive, negative, positiveMaps, negativeMaps);
+    }
+
+    /**
+     * A class query that retrieves all classes that select at least one positive
+     * examples within the given context together with the number of the selected
+     * examples.
+     * 
+     * @param positive positive examples
+     * @param negative negative examples
+     * @param context  a class expression that marks a position with the
+     *                 {@link Suggestor#CONTEXT_POSITION_MARKER} instance.
+     * @return a SPARQL query that can be used to select the IRIs described above
+     */
+    protected String generateClassAndInstanceQuery(Collection<String> positive, Collection<String> negative,
+            ClassExpression context, ClassExpression filterExpression) {
+        StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("SELECT ");
+        queryBuilder.append(EXAMPLE_VAR);
+        queryBuilder.append(' ');
+        queryBuilder.append(CLASS_VAR);
+        queryBuilder.append(' ');
+        queryBuilder.append(INSTANCE_VAR);
+        queryBuilder.append(" WHERE {\n    ");
+        String valuesString = generateValuesStmt(EXAMPLE_VAR,
+                Iterators.concat(positive.iterator(), negative.iterator()));
+        StringBuilder contextBuilder = new StringBuilder();
+        // TODO We need to be able to use INSTANCE_VAR instead of the variable v in the
+        // function
+        SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, EXAMPLE_VAR, valuesString,
+                createNotExistsFilter(filterExpression, EXAMPLE_VAR), CLASS_TYPE_STMT,
+                v -> v + " a " + CLASS_VAR + " .");
+        context.accept(visitor);
+        String contextString = contextBuilder.toString();
+        queryBuilder.append(contextString);
+        queryBuilder.append('}');
+        return queryBuilder.toString();
     }
 
     /**
@@ -372,6 +416,9 @@ public class SparqlBasedSuggestorWithInstances
         String suggestionQuery = generatePropertyQuery(positive, negative, data.suggestionPart, null, inverted);
         data.suggestionQuery = prepareQuery(suggestionQuery, propertyQueryVisitor);
         performQuery(data, positive, negative, positiveMaps, negativeMaps, propertyBlackList, PROP_VAR, results);
+        if (inverted) {
+            results.stream().forEach(s -> s.setInverted(true));
+        }
         return results;
     }
 
@@ -390,7 +437,11 @@ public class SparqlBasedSuggestorWithInstances
                 createNotExistsFilter(filterExpression, PROP_VAR), PROP_TYPE_STMT,
                 inverted ? v -> new StringBuilder().append(" [] ").append(PROP_VAR).append(" ").append(v).append(" .")
                         .toString()
-                        : v -> new StringBuilder().append(v).append(" ").append(PROP_VAR).append(" [] .").toString());
+                        : logic.supportsDataValues()
+                                ? v -> new StringBuilder().append(v).append(" ").append(PROP_VAR).append(" [] .")
+                                        .toString()
+                                : v -> new StringBuilder().append(v).append(" ").append(PROP_VAR)
+                                        .append(" ?temp . FILTER (!isLiteral(?temp))").toString());
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);

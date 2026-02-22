@@ -21,6 +21,7 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.OWL2;
 import org.apache.jena.vocabulary.RDF;
+import org.dice_research.cel.data.LearningProblemSatistics;
 import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.ScoredClassExpression;
@@ -35,16 +36,26 @@ import org.dice_research.cel.refine.instances.ScoredIRIWithInstances;
 import org.dice_research.cel.refine.suggest.sparql.SparqlBasedSuggestorWithInstances;
 import org.dice_research.cel.score.F1MeasureCalculator;
 import org.dice_research.cel.score.LengthBasedRefinementScorer;
+import org.dice_research.cel.score.ScoreCalculator;
 import org.dice_research.cel.score.ScoreCalculatorFactory;
-import org.dice_research.cel.tree.DecisionTreeLearner;
+import org.dice_research.cel.strategy.FeatureSelectionStrategy;
+import org.dice_research.cel.strategy.SimpleDirtyLeafNodeClassifier;
+import org.dice_research.cel.strategy.SingleNodeFeatureSelectionStrategy;
 import org.dice_research.cel.tree.DecisionTreeNode;
 import org.dice_research.cel.tree.Feature;
-import org.dice_research.cel.tree.SimpleFeatureProfile;
 import org.dice_research.cel.tree.TreeTransformer;
+import org.dice_research.cel.tree.UpdatingDecisionTreeLearner;
+import org.dice_research.cel.tree.select.AdditionallySelectedElementsComparator;
 import org.dice_research.cel.tree.select.BiggestPureSetComparator;
 import org.dice_research.cel.tree.select.ClassExpressionLengthComparator;
+import org.dice_research.cel.tree.select.FeatureSelectionFilter;
+import org.dice_research.cel.tree.select.FeatureSelector;
 import org.dice_research.cel.tree.select.GenericFeatureSelector;
-import org.dice_research.cel.tree.select.GiniIndexBasedComparator;
+import org.dice_research.cel.tree.select.MinGiniIndexBasedComparator;
+import org.dice_research.cel.tree.select.MinNodeSizeFeaturesFilter;
+import org.dice_research.cel.tree.select.NoneffectiveFeaturesFilter;
+import org.dice_research.cel.tree.select.SelectedExamplesCountComparator;
+import org.dice_research.cel.tree.select.SelectedPositiveExamplesComparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,21 +63,34 @@ import javolution.util.FastBitSet;
 
 public class GTDL extends AbstractConceptLearner {
 
+    public static final int DEFAULT_MIN_ABSOLUTE_CARDINALITY = 2;
+    public static final double DEFAULT_MIN_RELATIVE_CARDINALITY = 0.0;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(GTDL.class);
 
     protected SparqlBasedSuggestorWithInstances suggestor;
     protected DescriptionLogic logic;
     protected ScoreCalculatorFactory calculatorFactory;
-    protected FeatureSelectionStrategy strategy = new LocalFeatureSelectionStrategy();
+    protected FeatureSelectionStrategy strategy;
+    protected UpdatingDecisionTreeLearner<ScoredClassExpressionWithInstances> learner;
+//    protected DecisionTreeLearner<ScoredClassExpressionWithInstances> learner = new DecisionTreeLearner<ScoredClassExpressionWithInstances>(
+//            new GenericFeatureSelector<ScoredClassExpressionWithInstances>(new NoneffectiveFeaturesFilter(),
+//                    new MinGiniIndexBasedComparator(), new BiggestPureSetComparator(),
+//                    new ClassExpressionLengthComparator(), new SelectedPositiveExamplesComparator()));
     @SuppressWarnings("unchecked")
-    protected DecisionTreeLearner<ScoredClassExpressionWithInstances> learner = new DecisionTreeLearner<ScoredClassExpressionWithInstances>(
-            new GenericFeatureSelector<ScoredClassExpressionWithInstances>(new GiniIndexBasedComparator(),
-                    new BiggestPureSetComparator(), new ClassExpressionLengthComparator()));;
-    protected double precisionThreshold = 1.0;
+    protected FeatureSelector<ScoredClassExpressionWithInstances> refinementFeatureSelector = new GenericFeatureSelector<ScoredClassExpressionWithInstances>(
+            new SelectedExamplesCountComparator(), new ClassExpressionLengthComparator(),
+            new AdditionallySelectedElementsComparator());
     protected boolean debugMode = false;
 
     public GTDL(SparqlBasedSuggestorWithInstances suggestor, DescriptionLogic logic,
             ScoreCalculatorFactory calculatorFactory) {
+        this(suggestor, logic, calculatorFactory, DEFAULT_MIN_ABSOLUTE_CARDINALITY, DEFAULT_MIN_RELATIVE_CARDINALITY);
+    }
+
+    @SuppressWarnings("unchecked")
+    public GTDL(SparqlBasedSuggestorWithInstances suggestor, DescriptionLogic logic,
+            ScoreCalculatorFactory calculatorFactory, int minAbsoluteCardinality, double minRelativeCardinality) {
         super();
         this.suggestor = suggestor;
         logic = (DescriptionLogic) logic.clone();
@@ -78,6 +102,15 @@ public class GTDL extends AbstractConceptLearner {
                                                 // the combination of complex expressions.
         this.logic = logic;
         this.calculatorFactory = calculatorFactory;
+        this.strategy = new SingleNodeFeatureSelectionStrategy(
+                new SimpleDirtyLeafNodeClassifier(minAbsoluteCardinality, minRelativeCardinality));
+
+        this.learner = new UpdatingDecisionTreeLearner<ScoredClassExpressionWithInstances>(
+                new GenericFeatureSelector<ScoredClassExpressionWithInstances>(
+                        Arrays.asList(new FeatureSelectionFilter[] { new NoneffectiveFeaturesFilter(),
+                                new MinNodeSizeFeaturesFilter(minAbsoluteCardinality, minRelativeCardinality) }),
+                        new MinGiniIndexBasedComparator(), new BiggestPureSetComparator(),
+                        new ClassExpressionLengthComparator(), new SelectedPositiveExamplesComparator()));
     }
 
     @Override
@@ -85,16 +118,17 @@ public class GTDL extends AbstractConceptLearner {
             OutputStream logStream, IntermediateResultPrinter iResultPrinter, long startTime, long timeToStop) {
         Map<String, Integer> positiveMaps = toMap(positive);
         Map<String, Integer> negativeMaps = toMap(negative);
-        int numberOfExamples = positiveMaps.size() + negativeMaps.size();
+        LearningProblemSatistics lpStats = new LearningProblemSatistics(positiveMaps.size(), negativeMaps.size());
 
-        @SuppressWarnings("unchecked")
-        DecisionTreeLearner<ScoredClassExpressionWithInstances> learner = new DecisionTreeLearner<ScoredClassExpressionWithInstances>(
-                new GenericFeatureSelector<ScoredClassExpressionWithInstances>(new GiniIndexBasedComparator(),
-                        new BiggestPureSetComparator(), new ClassExpressionLengthComparator()));
+//        @SuppressWarnings("unchecked")
+//        DecisionTreeLearner<ScoredClassExpressionWithInstances> learner = new DecisionTreeLearner<ScoredClassExpressionWithInstances>(
+//                new GenericFeatureSelector<ScoredClassExpressionWithInstances>(new GiniIndexBasedComparator(),
+//                        new BiggestPureSetComparator(), new ClassExpressionLengthComparator()));
 
+        ScoreCalculator scoreCalculator = calculatorFactory.create(lpStats.numberOfPositives,
+                lpStats.numberOfNegatives);
         RefinementOperatorWithInstances rho = new InstanceSuggestorBasedRefinementOperator(suggestor, logic,
-                calculatorFactory.create(positive.size(), negative.size()), positive, negative, positiveMaps,
-                negativeMaps);
+                scoreCalculator, positive, negative, positiveMaps, negativeMaps);
         ((InstanceSuggestorBasedRefinementOperator) rho).setLogStream(logStream);
         ((InstanceSuggestorBasedRefinementOperator) rho).setDebugMode(debugMode);
 
@@ -103,7 +137,8 @@ public class GTDL extends AbstractConceptLearner {
         // concepts that won't be helpful
         Set<ClassExpression> refinedCEs = new HashSet<>();
 //                Arrays.asList(new NamedClass(OWL2.Thing.getURI()), new NamedClass(OWL2.NamedIndividual.getURI())));
-        seenCEs.addAll(filterRefinementResults(rho.refine(NamedClass.TOP, timeToStop), numberOfExamples));
+        seenCEs.addAll(filterRefinementResults(rho.refine(NamedClass.TOP, timeToStop), lpStats.numberOfExamples));
+        List<ScoredClassExpressionWithInstances> newlyCreatedFeatures = new ArrayList<>();
 
         DecisionTreeNode root = null;
         int iterationCount = 0;
@@ -111,35 +146,46 @@ public class GTDL extends AbstractConceptLearner {
         boolean needsMoreRefinement = true;
         Set<ScoredClassExpressionWithInstances> newExpressions;
         do {
-            // Train the decision tree with sample data.
-            root = learner.learn(seenCEs, positive.size(), negative.size());
+            // Update the tree if newly created features suggest to do so
+            root = learner.update(root, seenCEs, newlyCreatedFeatures, lpStats);
 
             // Output the structure of the trained tree for inspection (this part is just a
             // simple example).
-//            printTree(root);
-            // TODO calculate F1-score for tree
-            // TODO derive concept from tree
+            if (debugMode)
+                printTree(root);
 
-            Feature[] selectionPatterns = strategy.determinePatterns(root);
+            Feature[] selectionPatterns = strategy.determinePatterns(root, lpStats);
             needsMoreRefinement = selectionPatterns.length > 0;
 
-            ScoredClassExpressionWithInstances[] classExp4Ref = determineClassExpressions(selectionPatterns, seenCEs,
-                    refinedCEs/* , scorerFactory */);
-            refinedCount = 0;
-            for (ScoredClassExpressionWithInstances classExp : classExp4Ref) {
-                newExpressions = rho.refine(classExp.getClassExpression(), System.currentTimeMillis() + 10000);
-                ++refinedCount;
+            if (needsMoreRefinement) {
+                if (LOGGER.isDebugEnabled()) {
+                    int pos = 0;
+                    int neg = 0;
+                    for (int i = 0; i < selectionPatterns.length; ++i) {
+                        pos += selectionPatterns[i].getSelectedPositives().cardinality();
+                        neg += selectionPatterns[i].getSelectedNegatives().cardinality();
+                    }
+                    LOGGER.debug("Solution has issues with separating {} positives from {} negatives.", pos, neg);
+                }
+
+                ScoredClassExpressionWithInstances[] classExp4Ref = determineClassExpressions(selectionPatterns,
+                        seenCEs, refinedCEs, lpStats);
+                refinedCount = 0;
+                newlyCreatedFeatures.clear();
+                for (ScoredClassExpressionWithInstances classExp : classExp4Ref) {
+                    newExpressions = rho.refine(classExp.getClassExpression(), timeToStop);
+                    ++refinedCount;
 //                LOGGER.info("*** Refinement of {} ***", classExp.getClassExpression());
-//                LOGGER.info(" {} -> {} / {} (cScore={}, rScore={}) pos={} neg={}", suggestion.getIri(),
-//                        suggestion.getPosCount(), suggestion.getNegCount(), ce.getClassificationScore(),
-//                        ce.getRefinementScore(), suggestion.getSelectedPositives(), suggestion.getSelectedNegatives());
-                seenCEs.addAll(newExpressions);
-            }
-            if (refinedCount == 0) {
-                LOGGER.warn(
-                        "Couldn't get any more suggestions. Either the learner is not good enough or the data is limited in its expressiveness.");
-                // Todo take a statement with an exist quantifier that has the best overall
-                // score at the moment and refine it...
+                    newlyCreatedFeatures.addAll(newExpressions);
+                }
+                seenCEs.addAll(newlyCreatedFeatures);
+                if (refinedCount == 0) {
+                    LOGGER.warn(
+                            "Couldn't get any more suggestions. Either the learner is not good enough or the data is limited in its expressiveness.");
+                    // TODO at this point, we may have to train the tree one last time, in case we
+                    // can still improve the length of the expression compared to the currently
+                    // existing tree...
+                }
             }
             iterationCount++;
         } while (
@@ -149,8 +195,15 @@ public class GTDL extends AbstractConceptLearner {
                 (maxIterations == 0 || iterationCount < maxIterations) &&
                 // 2. We haven't reached the maximum amount of time that we are allowed to use
                 (maxTime == 0 || (System.currentTimeMillis() < timeToStop)));
-        printTree(root);
-        return Arrays.asList(transformTree(root, positiveMaps.size(), negativeMaps.size()));
+        if (debugMode)
+            printTree(root);
+        ScoredClassExpression result = transformTree(root, positiveMaps.size(), negativeMaps.size());
+        // If TOP would be a better result, return TOP
+        double topScore = scoreCalculator.calculateClassificationScore(positive.size(), negative.size());
+        if (topScore > result.getClassificationScore()) {
+            result = scoreCalculator.score(NamedClass.TOP, positive.size(), negative.size(), false);
+        }
+        return Arrays.asList(result);
     }
 
     /**
@@ -158,8 +211,7 @@ public class GTDL extends AbstractConceptLearner {
      * configuration of PruneCEL.
      * 
      * @param refine
-     * @param negativeCounts
-     * @param positivesCount
+     * @param numberOfExamples
      * @return
      */
     private Collection<? extends ScoredClassExpressionWithInstances> filterRefinementResults(
@@ -186,81 +238,54 @@ public class GTDL extends AbstractConceptLearner {
         // return calculatorFactory.create(1, 1).score(NamedClass.TOP, 1, 1, false);
     }
 
+    public void setStrategy(FeatureSelectionStrategy strategy) {
+        this.strategy = strategy;
+    }
+
     static {
         JenaSystem.init();
     }
 
     public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            LOGGER.error("Wrong usage! Bloom-CL <lp-file> <sparql-endpoint> [output-file]");
+            return;
+        }
 //        Thread.sleep(10000);
         long time = System.currentTimeMillis();
-//         String endpoint = "http://localhost:3030/family/sparql";
+//        String datasetName;
+        String endpoint = args[1];
+        String lpFile = args[0];
+        String resultFile = "results.txt";
+        if ((args.length > 2) && (!args[2].trim().isEmpty())) {
+            resultFile = args[2].trim();
+        }
+//        int maxFold = 1;
+
+//        datasetName = "Family";
+        // datasetName = Premierleague;
+        // datasetName = Lymphography;
+
+//        endpoint = "http://localhost:3030/" + datasetName.toLowerCase() + "/sparql";
+        // String endpoint = "http://localhost:3030/family/sparql";
+        // String endpoint = "http://localhost:3030/premierleague/sparql";
+        // String endpoint = "http://localhost:3030/lymphography/sparql";
         // QALD 10
 //        String endpoint = "http://131.234.28.27:9080/sparql";
         // QALD 9+DB
 //        String endpoint = "http://131.234.28.27:9050/sparql";
-        String endpoint = "http://localhost:3030/imdb10000/sparql";
-        long maxRunTime = 0;//300000;
+//        String endpoint = "http://localhost:3030/imdb10000/sparql";
+        long maxRunTime = 30000;// 300000;
 
-//         String lpFile = "LPs/Family/lps.json";
-        String lpFile = "LPs/IMDB_LPs/imdb_10000.json";
-//        String lpFile = "LPs/QA/TandF_MST5_reverse.json";
-//        HttpClient client = HttpClient.newHttpClient();
-//        QueryExecutionFactory queryExecFactory = new QueryExecutionFactoryHttp(endpoint, new DatasetDescription(),
-//                client);
-//        FeatureSelectionStrategy strategy = new LocalFeatureSelectionStrategy();
+//        lpFile = "LPs/" + datasetName + "/lps.json";
         ScoreCalculatorFactory scorerFactory = new F1MeasureCalculator.Factory();
 
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
-        boolean useCache = true;
-        boolean debugMode = false;
+//        boolean useCache = true;
+//        boolean debugMode = false;
         SparqlBasedSuggestorWithInstances suggestor = SparqlBasedSuggestorWithInstances.create(endpoint, logic);
         suggestor.addToClassBlackList(Arrays.asList(OWL.Thing.getURI(), OWL2.NamedIndividual.getURI()));
         suggestor.addToPropertyBlackList(RDF.type.getURI());
-//        try (OutputStream logStream = new BufferedOutputStream(new FileOutputStream("refinement.log"))) {
-
-//            DecisionTreeLearner<ScoredClassExpressionWithInstances> learner = new DecisionTreeLearner<ScoredClassExpressionWithInstances>(
-//                    new GenericFeatureSelector<ScoredClassExpressionWithInstances>(new InformationGainBasedComparator(),
-//                            new ClassExpressionLengthComparator()));
-
-//        String values = "VALUES ?e { <" + String.join("> <", positive) + "> <" + String.join("> <", negative)
-//                + "> } . ";
-
-//        String query;
-        // Class
-//        query = "SELECT ?e ?i WHERE { " + values + "?e a ?i . } ORDER BY ?i";
-//        System.out.println(query);
-//        List<ScoredIRIWithInstances> suggestedClasses = executeSelection(queryExecFactory, query, positiveMaps,
-//                negativeMaps);
-//        LOGGER.info("*** Init Classes ***");
-//        for (ScoredIRIWithInstances suggestion : suggestedClasses) {
-//            ScoredClassExpressionWithInstances ce = new ScoredClassExpressionWithInstances(
-//                    scorer.score(new NamedClass(suggestion.getIri()), suggestion.getPosCount(),
-//                            suggestion.getNegCount(), false),
-//                    suggestion.getSelectedPositives(), suggestion.getSelectedNegatives());
-//            LOGGER.info(" {} -> {} / {} (cScore={}, rScore={}) pos={} neg={}", suggestion.getIri(),
-//                    suggestion.getPosCount(), suggestion.getNegCount(), ce.getClassificationScore(),
-//                    ce.getRefinementScore(), suggestion.getSelectedPositives(), suggestion.getSelectedNegatives());
-//            seenCEs.add(ce);
-//        }
-        // Property
-//        query = "SELECT ?e ?i WHERE { " + values + "?e ?i [] . } ORDER BY ?i";
-//        System.out.println(query);
-//        List<ScoredIRIWithInstances> suggestedProperties = executeSelection(queryExecFactory, query, positiveMaps,
-//                negativeMaps);
-//        LOGGER.info("*** Init Properties ***");
-//        String rdfTypeIRI = RDF.type.getURI();
-//        for (ScoredIRIWithInstances suggestion : suggestedProperties) {
-//            if (!rdfTypeIRI.equals(suggestion.iri)) {
-//                ScoredClassExpressionWithInstances ce = new ScoredClassExpressionWithInstances(
-//                        scorer.score(new SimpleQuantifiedRole(true, suggestion.getIri(), false, NamedClass.TOP),
-//                                suggestion.getPosCount(), suggestion.getNegCount(), false),
-//                        suggestion.getSelectedPositives(), suggestion.getSelectedNegatives());
-//                LOGGER.info(" {} -> {} / {} (cScore={}, rScore={}) pos={} neg={}", suggestion.getIri(),
-//                        suggestion.getPosCount(), suggestion.getNegCount(), ce.getClassificationScore(),
-//                        ce.getRefinementScore(), suggestion.getSelectedPositives(), suggestion.getSelectedNegatives());
-//                seenCEs.add(ce);
-//            }
-//        }
 
         GTDL conceptLearner = new GTDL(suggestor, logic, scorerFactory);
         conceptLearner.setMaxTime(maxRunTime);
@@ -271,7 +296,7 @@ public class GTDL extends AbstractConceptLearner {
         JSONLearningProblemReader reader = new JSONLearningProblemReader();
         Collection<LearningProblem> problems = reader.readProblems(lpFile);
 
-        try (PrintStream pout = new PrintStream("results.txt")) {
+        try (PrintStream pout = new PrintStream(resultFile)) {
             for (LearningProblem problem : problems) {
                 if (printLogs) {
                     try (OutputStream logStream = new BufferedOutputStream(
@@ -290,15 +315,20 @@ public class GTDL extends AbstractConceptLearner {
         System.out.println("Seems like I am done (after " + (System.currentTimeMillis() - time) + "ms).");
     }
 
-    protected static ScoredClassExpressionWithInstances[] determineClassExpressions(Feature[] selectionPatterns,
-            Set<ScoredClassExpressionWithInstances> seenCEs, Set<ClassExpression> refinedCEs
-    /* , ScoreCalculatorFactory scorerFactory */) {
+    protected ScoredClassExpressionWithInstances[] determineClassExpressions(Feature[] selectionPatterns,
+            Set<ScoredClassExpressionWithInstances> seenCEs, Set<ClassExpression> refinedCEs,
+            LearningProblemSatistics lpStats) {
         List<ScoredClassExpressionWithInstances> results = new ArrayList<>(selectionPatterns.length);
         for (Feature selectionPattern : selectionPatterns) {
             ScoredClassExpressionWithInstances selectedCE = determineClassExpression(selectionPattern, seenCEs,
-                    refinedCEs/*
-                               * , scorerFactory
-                               */);
+                    refinedCEs, lpStats);
+//            ///// DEBUG
+//            ScoredClassExpressionWithInstances selectedCEOld = determineClassExpression_old(selectionPattern, seenCEs,
+//                    refinedCEs);
+//            System.out.println("New : " + ((selectedCE != null) ? selectedCE.toString() : "null"));
+//            System.out.println("Old : " + ((selectedCEOld != null) ? selectedCEOld.toString() : "null"));
+//            ///// DEBUG END
+
             if (selectedCE != null) {
                 refinedCEs.add(selectedCE.getClassExpression());
                 results.add(selectedCE);
@@ -317,7 +347,7 @@ public class GTDL extends AbstractConceptLearner {
      * @param refinedCEs
      * @return
      */
-    protected static ScoredClassExpressionWithInstances determineClassExpression(Feature selectionPattern,
+    protected static ScoredClassExpressionWithInstances determineClassExpression_old(Feature selectionPattern,
             Set<ScoredClassExpressionWithInstances> seenCEs,
             Set<ClassExpression> refinedCEs/* , ScoreCalculatorFactory scorerFactory */) {
         FastBitSet pos = selectionPattern.getSelectedPositives();
@@ -367,6 +397,14 @@ public class GTDL extends AbstractConceptLearner {
                     chosenCELength, chosenCEAdditionalCount);
         }
         return chosenCE;
+    }
+
+    protected ScoredClassExpressionWithInstances determineClassExpression(Feature selectionPattern,
+            Set<ScoredClassExpressionWithInstances> seenCEs, Set<ClassExpression> refinedCEs,
+            LearningProblemSatistics lpStats) {
+        return refinementFeatureSelector.selectBestFeature(
+                seenCEs.stream().filter(ce -> !refinedCEs.contains(ce.getClassExpression())),
+                selectionPattern.getSelectedPositives(), selectionPattern.getSelectedNegatives(), lpStats);
     }
 
     public static void printTree(DecisionTreeNode node) {
@@ -447,78 +485,6 @@ public class GTDL extends AbstractConceptLearner {
             }
         }
         return results;
-    }
-
-    public static abstract class AbstractFeatureSelectionStrategy implements FeatureSelectionStrategy {
-
-        protected void handleNode(DecisionTreeNode node, List<Feature> result) {
-            if (node.isLeaf()) {
-                handleLeafNode(node, result);
-                return;
-            }
-            if (node.getTrueChild() != null) {
-                handleNode(node.getTrueChild(), result);
-            }
-            if (node.getFalseChild() != null) {
-                handleNode(node.getFalseChild(), result);
-            }
-        }
-
-        protected abstract void handleLeafNode(DecisionTreeNode node, List<Feature> result);
-    }
-
-    public static class GlobalFeatureSelectionStrategy extends AbstractFeatureSelectionStrategy {
-
-        @Override
-        public Feature[] determinePatterns(DecisionTreeNode root) {
-            Feature globalPattern = new SimpleFeatureProfile();
-            List<Feature> result = Arrays.asList(globalPattern);
-            handleNode(root, result);
-            if ((globalPattern.getSelectedPositives().cardinality() > 0)
-                    || (globalPattern.getSelectedNegatives().cardinality() > 0)) {
-                return new Feature[] { globalPattern };
-            } else {
-                return new Feature[] {};
-            }
-        }
-
-        @Override
-        protected void handleLeafNode(DecisionTreeNode node, List<Feature> result) {
-            FastBitSet leafPos = node.getPositives();
-            FastBitSet leafNeg = node.getNegatives();
-            // If there are positives AND negatives, this node is not clean!
-            if ((leafPos.cardinality() != 0) && (leafNeg.cardinality() != 0)) {
-                Feature globalPattern = result.get(0);
-                globalPattern.getSelectedPositives().or(leafPos);
-                globalPattern.getSelectedNegatives().or(leafNeg);
-            }
-        }
-    }
-
-    public static class LocalFeatureSelectionStrategy extends AbstractFeatureSelectionStrategy {
-
-        @Override
-        public Feature[] determinePatterns(DecisionTreeNode root) {
-            List<Feature> result = new ArrayList<>();
-            handleNode(root, result);
-            return result.toArray(Feature[]::new);
-        }
-
-        @Override
-        protected void handleLeafNode(DecisionTreeNode node, List<Feature> result) {
-            FastBitSet leafPos = node.getPositives();
-            FastBitSet leafNeg = node.getNegatives();
-            // If there are positives AND negatives, this node is not clean!
-            if ((leafPos.cardinality() != 0) && (leafNeg.cardinality() != 0)) {
-                result.add(new SimpleFeatureProfile(cloneBitSet(leafPos), cloneBitSet(leafNeg)));
-            }
-        }
-
-        private FastBitSet cloneBitSet(FastBitSet leafPos) {
-            FastBitSet result = FastBitSet.newInstance();
-            result.or(leafPos);
-            return result;
-        }
     }
 
 }

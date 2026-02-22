@@ -2,16 +2,21 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.1.0</version>
+    </parent>
     <groupId>org.dice-research</groupId>
     <artifactId>prune-cel</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
 
 
     <!-- PROPERTIES -->
     <properties>
-        <java.version>17</java.version>
+        <!-- <java.version>17</java.version> -->
         <jena.version>4.8.0</jena.version>
-        <jenax.version>${jena.version}-2</jenax.version>
+        <jenax.version>4.8.0-2</jenax.version>
         <slf4j.version>2.0.7</slf4j.version>
         <junit.version>4.13.2</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -38,6 +43,21 @@
 
     <!-- DEPENDENCIES -->
     <dependencies>
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>logback-classic</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
         <!-- ~~~~~~~~~~~~~~~~~~~ Apache Jena ~~~~~~~~~~~~~~~~~~~~~~ -->
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -54,12 +74,13 @@
         <dependency>
             <groupId>org.aksw.jenax</groupId>
             <artifactId>jenax-rx-dataaccess</artifactId>
+            <version>${jenax.version}</version>
         </dependency>
         <!-- Apache Commons IO -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.11.0</version>
+            <version>2.21.0</version>
         </dependency>
         <!-- Apache Commons Collections -->
         <dependency>
@@ -71,7 +92,6 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
         </dependency>
         <!-- Commons classes of topic modeling -->
         <dependency>
@@ -90,13 +110,11 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <!-- Logging - SLF4J-Log4j Binding (only for testing) -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <!-- ~~~~~~~~~~~~~~~~~~~ End Logging ~~~~~~~~~~~~~~~~~~~~~~ -->
         <!-- ~~~~~~~~~~~~~~~~~~~ Testing ~~~~~~~~~~~~~~~~~~~~~~ -->
@@ -104,21 +122,20 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- ~~~~~~~~~~~~~~~~~~~ End Testing ~~~~~~~~~~~~~~~~~~~~~~ -->
     </dependencies>
     <dependencyManagement>
         <dependencies>
-            <!-- JenaX (Jena extensions) -->
+            <!-- JenaX (Jena extensions)
             <dependency>
                 <groupId>org.aksw.jenax</groupId>
                 <artifactId>jenax-bom</artifactId>
                 <version>${jenax.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
+            </dependency> -->
         </dependencies>
     </dependencyManagement>
 
@@ -126,20 +143,23 @@
     <!-- BUILD -->
     <build>
         <plugins>
-            <!-- Compiler plugin -->
+            <!-- Spring Boot -->
             <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- Compiler plugin -->
+            <!-- <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.2</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                 </configuration>
-            </plugin>
+            </plugin> -->
             <!-- Source plugin for creating source file jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.4</version>
                 <executions>
                     <execution>
                         <id>attach-sources-package</id>
@@ -161,14 +181,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.1</version>
                 <configuration>
                     <show>private</show>
                     <nohelp>true</nohelp>
                     <quiet>true</quiet>
                     <failOnError>false</failOnError>
-                    <!-- added for generating javadoc with java 1.8 -->
-                    <additionalparam>-Xdoclint:none</additionalparam>
+                    <!-- added for generating javadoc with java 1.8 
+                    <additionalparam>-Xdoclint:none</additionalparam>-->
                 </configuration>
                 <executions>
                     <execution>
@@ -186,12 +205,12 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Shade plugin not needed since we use Spring Boot
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.4.3</version>
                 <configuration>
-                    <!-- filter all the META-INF files of other artifacts -->
+                    <! - - filter all the META-INF files of other artifacts  - ->
                     <filters>
                         <filter>
                             <artifact>*:*</artifact>
@@ -216,9 +235,9 @@
                             implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                             <resource>META-INF/spring.handlers</resource>
                         </transformer>
-                        <!-- Important for Spring to be able to map XML 
+                        <!- - Important for Spring to be able to map XML 
                                 Schema files to local files. Otherwise, Spring may abort the processing of 
-                                XML files because of unavailable XML Schema files -->
+                                XML files because of unavailable XML Schema files - ->
                         <transformer
                             implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                             <resource>META-INF/spring.schemas</resource>
@@ -233,12 +252,11 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
             <!-- Resources management plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>2.7</version>
                 <configuration>
                     <encoding>UTF-8</encoding>
                 </configuration>
@@ -247,7 +265,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
                 <configuration>
                     <!-- connect with JaCoCo -->
                     <systemPropertyVariables>

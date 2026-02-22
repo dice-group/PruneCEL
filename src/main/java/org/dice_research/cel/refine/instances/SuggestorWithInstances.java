@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.dice_research.cel.expression.ClassExpression;
+import org.dice_research.cel.refine.suggest.Suggestor;
 
 /**
  * An interface of a class that is able to suggest nodes from a graph that could
@@ -13,7 +14,7 @@ import org.dice_research.cel.expression.ClassExpression;
  * 
  * <p>
  * <b>Note:</b> It is important that the given class expressions have exactly
- * one position that is marked. The {@link #CONTEXT_POSITION_MARKER} should be
+ * one position that is marked. The {@link Suggestor#CONTEXT_POSITION_MARKER} should be
  * used for marking the position.
  * </p>
  * 

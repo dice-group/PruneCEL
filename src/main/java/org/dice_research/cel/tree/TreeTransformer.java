@@ -4,6 +4,7 @@ import org.dice_research.cel.expression.ClassExpression;
 import org.dice_research.cel.expression.Junction;
 import org.dice_research.cel.expression.NamedClass;
 import org.dice_research.cel.expression.NegatingVisitor;
+import org.dice_research.cel.expression.OntolearnCompatibleSerializer;
 import org.dice_research.cel.expression.ScoredClassExpression;
 import org.dice_research.cel.refine.instances.ScoredClassExpressionWithInstances;
 import org.dice_research.cel.score.ScoreCalculator;
@@ -88,11 +89,11 @@ public class TreeTransformer {
 
     protected static class TransformationResult {
 
-        ClassExpression ce;
-        int tp = 0;
-        int tn = 0;
-        int fp = 0;
-        int fn = 0;
+        protected ClassExpression ce;
+        protected int tp = 0;
+        protected int tn = 0;
+        protected int fp = 0;
+        protected int fn = 0;
 
         public TransformationResult(ClassExpression ce, int tp, int tn, int fp, int fn) {
             super();

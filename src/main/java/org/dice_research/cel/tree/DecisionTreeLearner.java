@@ -2,6 +2,7 @@ package org.dice_research.cel.tree;
 
 import java.util.Collection;
 
+import org.dice_research.cel.data.LearningProblemSatistics;
 import org.dice_research.cel.tree.select.FeatureSelector;
 
 import javolution.util.FastBitSet;
@@ -26,16 +27,16 @@ public class DecisionTreeLearner<T extends Feature> {
     }
 
     // Method to train a decision tree.
-    public DecisionTreeNode learn(Collection<T> features, int numberOfPositives, int numberOfNegatives) {
+    public DecisionTreeNode learn(Collection<T> features, LearningProblemSatistics lpStats) {
         FastBitSet positives = FastBitSet.newInstance();
-        positives.set(0, numberOfPositives);
+        positives.set(0, lpStats.numberOfPositives);
         FastBitSet negatives = FastBitSet.newInstance();
-        negatives.set(0, numberOfNegatives);
-        return buildTree(features, positives, negatives, numberOfPositives, numberOfNegatives);
+        negatives.set(0, lpStats.numberOfNegatives);
+        return buildTree(features, positives, negatives, lpStats);
     }
 
-    protected DecisionTreeNode buildTree(Collection<T> features, FastBitSet positives, FastBitSet negatives, int allPosCount,
-            int allNegCount) {
+    protected DecisionTreeNode buildTree(Collection<T> features, FastBitSet positives, FastBitSet negatives,
+            LearningProblemSatistics lpStats) {
         // If all examples have the same label, create a leaf node.
         if (positives.cardinality() == 0) {
             return new DecisionTreeNode(false, positives, negatives);
@@ -45,7 +46,7 @@ public class DecisionTreeLearner<T extends Feature> {
         }
 
         // Select the best feature to split on
-        Feature bestFeature = selector.selectBestFeature(features, positives, negatives);
+        Feature bestFeature = selector.selectBestFeature(features, positives, negatives, lpStats);
         if (bestFeature == null) {
             return new DecisionTreeNode(positives.cardinality() >= negatives.cardinality(), positives, negatives);
         }
@@ -54,89 +55,30 @@ public class DecisionTreeLearner<T extends Feature> {
         DecisionTreeNode root = new DecisionTreeNode(bestFeature, positives, negatives);
 
         // Split data based on the chosen feature and recurse for each subset.
-        FastBitSet newPositives = createBitSetForChild(positives, allPosCount, bestFeature.getSelectedPositives(), false);
-        FastBitSet newNegatives = createBitSetForChild(negatives, allNegCount, bestFeature.getSelectedNegatives(), false);
-//        FastBitSet newPositives = FastBitSet.newInstance();
-//        newPositives.or(positives);//(BitSet) positives.clone();
-//        newPositives.and(bestFeature.getSelectedPositives());
-//        FastBitSet newNegatives = FastBitSet.newInstance();
-//        //BitSet newNegatives = //(BitSet) negatives.clone();
-//        newNegatives.or(negatives);//(BitSet) positives.clone();
-//        newNegatives.and(bestFeature.getSelectedNegatives());
+        FastBitSet newPositives = createBitSetForChild(positives, lpStats.numberOfPositives, bestFeature.getSelectedPositives(),
+                false);
+        FastBitSet newNegatives = createBitSetForChild(negatives, lpStats.numberOfNegatives, bestFeature.getSelectedNegatives(),
+                false);
 
-        root.setTrueChild(buildTree(features, newPositives, newNegatives, allPosCount, allNegCount));
+        root.setTrueChild(buildTree(features, newPositives, newNegatives, lpStats));
 
-        newPositives = createBitSetForChild(positives, allPosCount, bestFeature.getSelectedPositives(), true);
-        newNegatives = createBitSetForChild(negatives, allNegCount, bestFeature.getSelectedNegatives(), true);
-//        newPositives = FastBitSet.newInstance();
-//        //newPositives = (BitSet) bestFeature.getSelectedPositives().clone();
-//        newPositives.or(bestFeature.getSelectedPositives());
-//        newPositives.flip(0, allPosCount);
-//        newPositives.and(positives);
-//        //newNegatives = (BitSet) bestFeature.getSelectedNegatives().clone();
-//        newNegatives = FastBitSet.newInstance();
-//        newNegatives.or(bestFeature.getSelectedNegatives());//(BitSet) positives.clone();
-//        newNegatives.flip(0, allNegCount);
-//        newNegatives.and(negatives);
-        root.setFalseChild(buildTree(features, newPositives, newNegatives, allPosCount, allNegCount));
+        newPositives = createBitSetForChild(positives, lpStats.numberOfPositives, bestFeature.getSelectedPositives(), true);
+        newNegatives = createBitSetForChild(negatives, lpStats.numberOfNegatives, bestFeature.getSelectedNegatives(), true);
+
+        root.setFalseChild(buildTree(features, newPositives, newNegatives, lpStats));
 
         return root;
     }
 
-    protected static FastBitSet createBitSetForChild(FastBitSet instances, int instanceCount, FastBitSet featureSelection, boolean falseChild) {
+    protected static FastBitSet createBitSetForChild(FastBitSet instances, int instanceCount,
+            FastBitSet featureSelection, boolean falseChild) {
         FastBitSet newSet = FastBitSet.newInstance();
         newSet.or(featureSelection);
-        if(falseChild) {
+        if (falseChild) {
             newSet.flip(0, instanceCount);
         }
         newSet.and(instances);
         return newSet;
     }
-
-//    // Select the best feature based on some criteria (e.g., information gain)
-//    private static Feature selectBestFeature(Collection<? extends Feature> features, BitSet positives,
-//            BitSet negatives) {
-//        int numberOfPositives = positives.cardinality();
-//        int numberOfNegatives = negatives.cardinality();
-//        // System.out.println("Selecting feature for " + numberOfPositives + "/" +
-//        // numberOfNegatives);
-//        // Select best feature
-//        Feature bestFeature = null;
-//        double bestScore = 0.0;
-//        int bestLength = Integer.MAX_VALUE;
-//        double currentScore;
-//        int currentLength;
-//        for (Feature feature : features) {
-//            // TODO Optimize this; these temporary bitsets shouldn't be necessary
-//            BitSet selectedPos = (BitSet) positives.clone();
-//            selectedPos.and(feature.getSelectedPositives());
-//            BitSet selectedNeg = (BitSet) negatives.clone();
-//            selectedNeg.and(feature.getSelectedNegatives());
-//            currentScore = calculateScore(numberOfPositives, numberOfNegatives, selectedPos.cardinality(),
-//                    selectedNeg.cardinality());
-//            // System.out.println(currentScore + " " + feature);
-//            if (currentScore >= bestScore) {
-//                currentLength = ScoredClassExpressionWithInstances.class.isInstance(feature)
-//                        ? LengthBasedRefinementScorer
-//                                .getLength(((ScoredClassExpressionWithInstances) feature).getClassExpression())
-//                        : 0;
-//                if ((currentScore > bestScore) || (currentLength < bestLength)) {
-//                    bestScore = currentScore;
-//                    bestFeature = feature;
-//                    bestLength = currentLength;
-//                }
-//            }
-//        }
-//        return bestFeature;
-//    }
-
-//    protected static double calculateScore(int numberOfPositives, int numberOfNegatives, int selectedPositives,
-//            int selectedNegatives) {
-//        if (USE_GINI_INDEX) {
-//            return 1 - calculateGiniIndex(numberOfPositives, numberOfNegatives, selectedPositives, selectedNegatives);
-//        } else {
-//            return calculateInformationGain(numberOfPositives, numberOfNegatives, selectedPositives, selectedNegatives);
-//        }
-//    }
 
 }

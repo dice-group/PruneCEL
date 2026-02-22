@@ -54,12 +54,12 @@ public class DescriptionLogic implements Cloneable {
     protected boolean supportsInverseProperties = false;
 
     /**
-     * Supports I = Cardinality restrictions.
+     * Supports N = Cardinality restrictions.
      */
     protected boolean supportsCardinalityRestrictions = false;
 
     /**
-     * Supports I = Qualified cardinality (cardinality restrictions that have
+     * Supports Q = Qualified cardinality (cardinality restrictions that have
      * fillers other than ⊤).
      */
     protected boolean supportsQualifiedCardinality = false;
@@ -278,131 +278,153 @@ public class DescriptionLogic implements Cloneable {
 
     public static DescriptionLogic parse(String name) {
         DescriptionLogic logic = new DescriptionLogic();
-        if (name.equalsIgnoreCase("EL")) {
-            logic.setName("EL");
+        String baseLang = "";
+        if (name.contains("EL")) {
+            baseLang = "EL";
             logic.setSupportsConceptIntersection(true);
             logic.setSupportsExistentialQuantification(true);
-        } else if (name.equalsIgnoreCase("ALC")) {
-            logic.setName("ALC");
+        } else if (name.contains("AL")) {
+            baseLang = "AL";
             logic.setSupportsAtomicNegation(true);
-            logic.setSupportsComplexConceptNegation(true);
             logic.setSupportsConceptIntersection(true);
             logic.setSupportsUniversalRestrictions(true);
             logic.setSupportsConceptUnion(true);
             logic.setSupportsExistentialQuantification(true);
-        } else {
-            char letters[] = name.toCharArray();
-            BitSet nameParts = new BitSet(); // SRHOIQND
-            for (int i = 0; i < letters.length; ++i) {
-                switch (letters[i]) {
-                case 's':
-                case 'S': {
-                    logic.setSupportsAtomicNegation(true);
-                    logic.setSupportsConceptIntersection(true);
-                    logic.setSupportsUniversalRestrictions(true);
-                    logic.setSupportsConceptUnion(true);
-                    logic.setSupportsExistentialQuantification(true);
-                    // With transitive roles (?)
-                    nameParts.set(0);
+        }
+        char letters[] = name.toCharArray();
+        BitSet nameParts = new BitSet(); // CSRHOIQND
+        for (int i = 0; i < letters.length; ++i) {
+            switch (letters[i]) {
+            case 'a': // falls through
+            case 'A':
+            case 'e':
+            case 'E':
+            case 'l':
+            case 'L': {
+                // nothing to do since base languages are handled above
+                break;
+            }
+            case 's':
+            case 'S': {
+                logic.setSupportsAtomicNegation(true);
+                logic.setSupportsConceptIntersection(true);
+                logic.setSupportsUniversalRestrictions(true);
+                logic.setSupportsConceptUnion(true);
+                logic.setSupportsExistentialQuantification(true);
+                // With transitive roles (?)
+                nameParts.set(1);
+                // falls through, S comes with C
+            }
+            case 'c':
+            case 'C': {
+                logic.setSupportsComplexConceptNegation(true);
+                nameParts.set(0);
+                break;
+            }
+            // case 'r':
+            // case 'R': {
+            // logic.setSupportsQualifiedCardinality(true);
+            // nameParts.set(2);
+            // // falls through, R comes with H
+            // }
+            case 'h':
+            case 'H': {
+                logic.setSupportsRoleHierarchy(true);
+                nameParts.set(3);
+                break;
+            }
+            case 'o':
+            case 'O': {
+                logic.setSupportsNominals(true);
+                nameParts.set(4);
+                break;
+            }
+            case 'i':
+            case 'I': {
+                logic.setSupportsInverseProperties(true);
+                nameParts.set(5);
+                break;
+            }
+            case 'q':
+            case 'Q': {
+                logic.setSupportsQualifiedCardinality(true);
+                nameParts.set(6);
+                // falls through, Q comes with N
+            }
+            case 'n':
+            case 'N': {
+                logic.setSupportsCardinalityRestrictions(true);
+                nameParts.set(7);
+                break;
+            }
+            case 'd':
+            case 'D': {
+                logic.setSupportsDataValues(true);
+                nameParts.set(8);
+                break;
+            }
+            case '(':
+            case ')': {
+                // ignore these letters
+                break;
+            }
+            default:
+                throw new IllegalArgumentException("Unexpected description logic value: " + letters[i]);
+            }
+        }
+        StringBuilder nameBuilder = new StringBuilder();
+        nameBuilder.append(baseLang);
+        for (int i = 0; i < 9; ++i) {
+            if (nameParts.get(i)) {
+                switch (i) {
+                case 0: {
+                    if (!nameParts.get(1)) {
+                    nameBuilder.append('C');
+                    }
                     break;
                 }
-                // case 'r':
-                // case 'R': {
-                // logic.setSupportsQualifiedCardinality(true);
-                // nameParts.set(1);
-                // // falls through, R comes with H
-                // }
-                case 'h':
-                case 'H': {
-                    logic.setSupportsRoleHierarchy(true);
-                    nameParts.set(2);
+                case 1: {
+                    nameBuilder.append('S');
                     break;
                 }
-                case 'o':
-                case 'O': {
-                    logic.setSupportsNominals(true);
-                    nameParts.set(3);
+                case 2: {
+                    nameBuilder.append('R');
                     break;
                 }
-                case 'i':
-                case 'I': {
-                    logic.setSupportsInverseProperties(true);
-                    nameParts.set(4);
+                case 3: {
+                    if (!nameParts.get(2)) {
+                        nameBuilder.append('H');
+                    }
                     break;
                 }
-                case 'q':
-                case 'Q': {
-                    logic.setSupportsQualifiedCardinality(true);
-                    // falls through, Q comes with N
-                    nameParts.set(5);
-                }
-                case 'n':
-                case 'N': {
-                    logic.setSupportsCardinalityRestrictions(true);
-                    nameParts.set(6);
+                case 4: {
+                    nameBuilder.append('O');
                     break;
                 }
-                case 'd':
-                case 'D': {
-                    logic.setSupportsDataValues(true);
-                    nameParts.set(7);
+                case 5: {
+                    nameBuilder.append('I');
                     break;
                 }
-                case '(':
-                case ')': {
-                    // ignore these letters
+                case 6: {
+                    nameBuilder.append('Q');
+                    break;
+                }
+                case 7: {
+                    if (!nameParts.get(6)) {
+                        nameBuilder.append('N');
+                    }
+                    break;
+                }
+                case 8: {
+                    nameBuilder.append("(D)");
                     break;
                 }
                 default:
-                    throw new IllegalArgumentException("Unexpected description logic value: " + letters[i]);
-                }
-            }
-            StringBuilder nameBuilder = new StringBuilder();
-            for (int i = 0; i < 8; ++i) {
-                if (nameParts.get(i)) {
-                    switch (i) {
-                    case 0: {
-                        nameBuilder.append('S');
-                        break;
-                    }
-                    case 1: {
-                        nameBuilder.append('R');
-                        break;
-                    }
-                    case 2: {
-                        if (!nameParts.get(1)) {
-                            nameBuilder.append('H');
-                        }
-                        break;
-                    }
-                    case 3: {
-                        nameBuilder.append('O');
-                        break;
-                    }
-                    case 4: {
-                        nameBuilder.append('I');
-                        break;
-                    }
-                    case 5: {
-                        nameBuilder.append('Q');
-                        break;
-                    }
-                    case 6: {
-                        if (!nameParts.get(5)) {
-                            nameBuilder.append('N');
-                        }
-                        break;
-                    }
-                    case 7: {
-                        nameBuilder.append("(D)");
-                        break;
-                    }
-                    default:
-                        // nothing to do
-                    }
+                    // nothing to do
                 }
             }
         }
+        logic.setName(nameBuilder.toString());
         return logic;
     }
 

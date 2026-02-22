@@ -371,6 +371,9 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         }
         data.suggestionQuery = prepareQuery(suggestionQuery, propertyQueryVisitor);
         performQuery(data, positive, negative, new ScoredIriQuerySolutionMapper("?prop", propertyBlackList), results);
+        if (inverted) {
+            results.stream().forEach(s -> s.setInverted(true));
+        }
         return results;
     }
 
@@ -383,7 +386,9 @@ public class SparqlBasedSuggestor implements ExtendedSuggestor, InstanceRetrieve
         StringBuilder contextBuilder = new StringBuilder();
         SparqlBuildingVisitor visitor = new SparqlBuildingVisitor(contextBuilder, "?pos", valuesString,
                 createNotExistsFilter(filterExpression, "?pos"), "?prop a <" + RDF.Property.getURI() + "> .",
-                inverted ? v -> " [] ?prop v ." : v -> v + " ?prop [] .");
+                inverted ? v -> " [] ?prop v ."
+                        : logic.supportsDataValues() ? v -> v + " ?prop [] ."
+                                : v -> v + " ?prop ?temp FILTER (!isLiteral(?temp)).");
         context.accept(visitor);
         String contextString = contextBuilder.toString();
         queryBuilder.append(contextString);

@@ -183,10 +183,10 @@ public class PruneCEL extends AbstractConceptLearner {
 
     public static void main(String[] args) throws Exception {
         // XXX Set SPARQL endpoint
-//         String endpoint = "http://localhost:9080/sparql";
+        String endpoint = "http://localhost:9080/sparql";
 //        String endpoint = "http://localhost:3030/exp-bench/sparql";
 //        String endpoint = "http://localhost:3030/family/sparql";
-        String endpoint = "http://localhost:3030/imdb10000/sparql";
+//        String endpoint = "http://localhost:3030/imdb10000/sparql";
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9050/sparql";
         // QALD9-plus-wikidata
 //        String endpoint = "http://dice-quan.cs.uni-paderborn.de:9070/sparql";
@@ -195,12 +195,12 @@ public class PruneCEL extends AbstractConceptLearner {
         // XXX Set description logic
         DescriptionLogic logic = DescriptionLogic.parse("ALC");
         long maxRunTime = 300000;
-        
+
 //        Thread.sleep(10000);
 
         ScoreCalculatorFactory factory = null;
         // XXX Choose either F1 or balanced accuracy
-         factory = new F1MeasureCalculator.Factory();
+        factory = new F1MeasureCalculator.Factory();
         // factory = new BalancedAccuracyCalculator.Factory();
 //        factory = new AccuracyCalculator.Factory();
 
@@ -221,7 +221,7 @@ public class PruneCEL extends AbstractConceptLearner {
             boolean printLogs = true;
 
             PruneCEL cel = null;
-            if(recursive) {
+            if (recursive) {
                 cel = new SimpleRecursivePruneCEL(suggestor, logic, factory, suggestor);
             } else {
                 cel = new PruneCEL(suggestor, logic, factory);
@@ -243,8 +243,10 @@ public class PruneCEL extends AbstractConceptLearner {
 
             // XXX Choose the learning problem (as JSON file)
             JSONLearningProblemReader reader = new JSONLearningProblemReader();
-            //Collection<LearningProblem> problems = reader.readProblems("LPs/Family/lps.json");
-            Collection<LearningProblem> problems = reader.readProblems("LPs/IMDB_LPs/imdb_10000.json");
+            // Collection<LearningProblem> problems =
+            // reader.readProblems("LPs/Family/lps.json");
+//            Collection<LearningProblem> problems = reader.readProblems("LPs/IMDB_LPs/imdb_10000.json");
+            Collection<LearningProblem> problems = reader.readProblems("LPs/enexa/lps.json");
 //            Collection<LearningProblem> problems = reader.readProblems("/home/micha/Downloads/TandF_MST5_reverse.json");
             // Collection<LearningProblem> problems =
             // reader.readProblems("/home/micha/Downloads/TandF_MST5.json");
@@ -319,7 +321,7 @@ public class PruneCEL extends AbstractConceptLearner {
 //            ce = (new NegatingVisitor()).negateExpression(ce);
 //            System.out.println(suggestor.scoreExpression(ce, prob.getPositiveExamples(), prob.getNegativeExamples()));
             // DEBUG CODE END!!!
-            
+
             try (PrintStream pout = new PrintStream("results.txt")) {
 //                for (int i = 0; i < names.size(); ++i) {
                 for (LearningProblem problem : problems) {
